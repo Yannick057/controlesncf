@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 
+export interface TarifItem {
+  id: number;
+  type: 'STT' | 'RNV' | 'Titre tiers' | 'D. naissance' | 'Autre';
+  montant: number;
+}
+
 export interface OnboardControl {
   id: number;
   trainNumber: string;
@@ -7,6 +13,19 @@ export interface OnboardControl {
   date: string;
   time: string;
   passengers: number;
+  // Tarif à bord
+  tarifBord: number;
+  // Tarif contrôle
+  tarifsControle: TarifItem[];
+  stt50Count: number;
+  // PV
+  pvList: TarifItem[];
+  stt100Count: number;
+  // RI
+  riPositif: number;
+  riNegatif: number;
+  commentaire: string;
+  // Calculated
   fraudCount: number;
   fraudRate: number;
   timestamp: string;
@@ -21,6 +40,17 @@ export interface StationControl {
   date: string;
   time: string;
   passengers: number;
+  // Tarif contrôle
+  tarifsControle: TarifItem[];
+  stt50Count: number;
+  // PV
+  pvList: TarifItem[];
+  stt100Count: number;
+  // RI
+  riPositif: number;
+  riNegatif: number;
+  commentaire: string;
+  // Calculated
   fraudCount: number;
   fraudRate: number;
   timestamp: string;
@@ -30,23 +60,24 @@ export function useOnboardControls() {
   const [controls, setControls] = useState<OnboardControl[]>([]);
 
   useEffect(() => {
-    const saved = localStorage.getItem('onboard_controls');
+    const saved = localStorage.getItem('sncf-controls-onboard');
     if (saved) {
       setControls(JSON.parse(saved));
     }
   }, []);
 
   const addControl = useCallback((control: Omit<OnboardControl, 'id' | 'fraudRate' | 'timestamp'>) => {
+    const fraudCount = control.fraudCount;
     const newControl: OnboardControl = {
       ...control,
       id: Date.now(),
-      fraudRate: control.passengers > 0 ? (control.fraudCount / control.passengers) * 100 : 0,
+      fraudRate: control.passengers > 0 ? (fraudCount / control.passengers) * 100 : 0,
       timestamp: new Date().toISOString(),
     };
 
     setControls((prev) => {
       const updated = [newControl, ...prev];
-      localStorage.setItem('onboard_controls', JSON.stringify(updated));
+      localStorage.setItem('sncf-controls-onboard', JSON.stringify(updated));
       return updated;
     });
 
@@ -55,7 +86,7 @@ export function useOnboardControls() {
 
   const clearControls = useCallback(() => {
     setControls([]);
-    localStorage.removeItem('onboard_controls');
+    localStorage.removeItem('sncf-controls-onboard');
   }, []);
 
   return { controls, addControl, clearControls, setControls };
@@ -65,23 +96,24 @@ export function useStationControls() {
   const [controls, setControls] = useState<StationControl[]>([]);
 
   useEffect(() => {
-    const saved = localStorage.getItem('station_controls');
+    const saved = localStorage.getItem('sncf-controls-station');
     if (saved) {
       setControls(JSON.parse(saved));
     }
   }, []);
 
   const addControl = useCallback((control: Omit<StationControl, 'id' | 'fraudRate' | 'timestamp'>) => {
+    const fraudCount = control.fraudCount;
     const newControl: StationControl = {
       ...control,
       id: Date.now(),
-      fraudRate: control.passengers > 0 ? (control.fraudCount / control.passengers) * 100 : 0,
+      fraudRate: control.passengers > 0 ? (fraudCount / control.passengers) * 100 : 0,
       timestamp: new Date().toISOString(),
     };
 
     setControls((prev) => {
       const updated = [newControl, ...prev];
-      localStorage.setItem('station_controls', JSON.stringify(updated));
+      localStorage.setItem('sncf-controls-station', JSON.stringify(updated));
       return updated;
     });
 
@@ -90,7 +122,7 @@ export function useStationControls() {
 
   const clearControls = useCallback(() => {
     setControls([]);
-    localStorage.removeItem('station_controls');
+    localStorage.removeItem('sncf-controls-station');
   }, []);
 
   return { controls, addControl, clearControls, setControls };
@@ -111,6 +143,14 @@ export function useControlStats(onboardControls: OnboardControl[], stationContro
 
   const fraudRate = totalPassengers > 0 ? (totalFrauds / totalPassengers) * 100 : 0;
 
+  const totalTarifsControle = 
+    onboardControls.reduce((sum, c) => sum + c.tarifsControle.reduce((s, t) => s + t.montant, 0) + (c.stt50Count * 50), 0) +
+    stationControls.reduce((sum, c) => sum + c.tarifsControle.reduce((s, t) => s + t.montant, 0) + (c.stt50Count * 50), 0);
+
+  const totalPV = 
+    onboardControls.reduce((sum, c) => sum + c.pvList.reduce((s, t) => s + t.montant, 0) + (c.stt100Count * 100), 0) +
+    stationControls.reduce((sum, c) => sum + c.pvList.reduce((s, t) => s + t.montant, 0) + (c.stt100Count * 100), 0);
+
   return {
     totalOnboard,
     totalStation,
@@ -118,5 +158,7 @@ export function useControlStats(onboardControls: OnboardControl[], stationContro
     totalPassengers,
     totalFrauds,
     fraudRate,
+    totalTarifsControle,
+    totalPV,
   };
 }

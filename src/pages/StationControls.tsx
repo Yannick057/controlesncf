@@ -1,31 +1,139 @@
-import { ControlForm } from '@/components/controls/ControlForm';
+import { useState } from 'react';
+import { Plus, Building2, AlertTriangle, FileText, User } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { ControlsTable } from '@/components/controls/ControlsTable';
-import { useStationControls, StationControl } from '@/hooks/useControls';
+import { Counter } from '@/components/controls/Counter';
+import { TypeToggle, TarifType } from '@/components/controls/TypeToggle';
+import { TarifList } from '@/components/controls/TarifList';
+import { useStationControls, StationControl, TarifItem } from '@/hooks/useControls';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 export default function StationControls() {
   const { controls, addControl } = useStationControls();
+  const today = new Date().toISOString().split('T')[0];
+  const now = new Date().toTimeString().slice(0, 5);
 
-  const handleSubmit = (data: Record<string, string | number>) => {
+  // Basic info
+  const [stationName, setStationName] = useState('');
+  const [platform, setPlatform] = useState('');
+  const [origin, setOrigin] = useState('');
+  const [destination, setDestination] = useState('');
+  const [date, setDate] = useState(today);
+  const [time, setTime] = useState(now);
+  const [passengers, setPassengers] = useState('');
+
+  // Tarif contrôle
+  const [tarifControleType, setTarifControleType] = useState<TarifType>('STT');
+  const [tarifControleMontant, setTarifControleMontant] = useState('');
+  const [tarifsControle, setTarifsControle] = useState<TarifItem[]>([]);
+  const [stt50Count, setStt50Count] = useState(0);
+
+  // PV
+  const [pvType, setPvType] = useState<TarifType>('STT');
+  const [pvMontant, setPvMontant] = useState('');
+  const [pvList, setPvList] = useState<TarifItem[]>([]);
+  const [stt100Count, setStt100Count] = useState(0);
+
+  // RI
+  const [riPositif, setRiPositif] = useState(0);
+  const [riNegatif, setRiNegatif] = useState(0);
+  const [commentaire, setCommentaire] = useState('');
+
+  // Calculated values
+  const totalTarifsControle = tarifsControle.reduce((sum, t) => sum + t.montant, 0) + (stt50Count * 50);
+  const totalPV = pvList.reduce((sum, t) => sum + t.montant, 0) + (stt100Count * 100);
+  const fraudCount = tarifsControle.length + pvList.length + stt50Count + stt100Count;
+  const passengersNum = parseInt(passengers) || 0;
+  const fraudRate = passengersNum > 0 ? (fraudCount / passengersNum) * 100 : 0;
+
+  const addTarifControle = () => {
+    const montant = parseFloat(tarifControleMontant);
+    if (!montant || montant <= 0) {
+      toast.error('Montant invalide');
+      return;
+    }
+    setTarifsControle([...tarifsControle, { id: Date.now(), type: tarifControleType, montant }]);
+    setTarifControleMontant('');
+  };
+
+  const removeTarifControle = (id: number) => {
+    setTarifsControle(tarifsControle.filter((t) => t.id !== id));
+  };
+
+  const addPv = () => {
+    const montant = parseFloat(pvMontant);
+    if (!montant || montant <= 0) {
+      toast.error('Montant invalide');
+      return;
+    }
+    setPvList([...pvList, { id: Date.now(), type: pvType, montant }]);
+    setPvMontant('');
+  };
+
+  const removePv = (id: number) => {
+    setPvList(pvList.filter((t) => t.id !== id));
+  };
+
+  const resetForm = () => {
+    setStationName('');
+    setPlatform('');
+    setOrigin('');
+    setDestination('');
+    setDate(today);
+    setTime(new Date().toTimeString().slice(0, 5));
+    setPassengers('');
+    setTarifsControle([]);
+    setStt50Count(0);
+    setPvList([]);
+    setStt100Count(0);
+    setRiPositif(0);
+    setRiNegatif(0);
+    setCommentaire('');
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!stationName.trim() || !platform.trim() || !passengers) {
+      toast.error('Veuillez remplir les champs obligatoires');
+      return;
+    }
+
     addControl({
-      stationName: data.stationName as string,
-      platform: data.platform as string,
-      origin: data.origin as string,
-      destination: data.destination as string,
-      date: data.date as string,
-      time: data.time as string,
-      passengers: data.passengers as number,
-      fraudCount: data.fraudCount as number,
+      stationName,
+      platform,
+      origin,
+      destination,
+      date,
+      time,
+      passengers: passengersNum,
+      tarifsControle,
+      stt50Count,
+      pvList,
+      stt100Count,
+      riPositif,
+      riNegatif,
+      commentaire,
+      fraudCount,
     });
+
+    toast.success('Contrôle enregistré !', {
+      description: `${stationName} - ${passengersNum} passagers, ${fraudCount} fraudes`,
+    });
+
+    resetForm();
   };
 
   const columns = [
     {
       key: 'stationName',
       label: 'Gare',
-      render: (item: StationControl) => (
-        <span className="font-medium">{item.stationName}</span>
-      ),
+      render: (item: StationControl) => <span className="font-medium">{item.stationName}</span>,
     },
     {
       key: 'platform',
@@ -47,9 +155,7 @@ export default function StationControls() {
       key: 'passengers',
       label: 'Passagers',
       align: 'right' as const,
-      render: (item: StationControl) => (
-        <span className="font-medium">{item.passengers}</span>
-      ),
+      render: (item: StationControl) => <span className="font-medium">{item.passengers}</span>,
     },
     {
       key: 'fraudCount',
@@ -68,9 +174,7 @@ export default function StationControls() {
       key: 'fraudRate',
       label: 'Taux',
       align: 'right' as const,
-      render: (item: StationControl) => (
-        <span className="font-medium">{item.fraudRate.toFixed(1)}%</span>
-      ),
+      render: (item: StationControl) => <span className="font-medium">{item.fraudRate.toFixed(1)}%</span>,
     },
   ];
 
@@ -81,7 +185,249 @@ export default function StationControls() {
         <p className="text-muted-foreground">Enregistrez et consultez les contrôles effectués dans les gares</p>
       </div>
 
-      <ControlForm type="station" onSubmit={handleSubmit} />
+      <form onSubmit={handleSubmit}>
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Left column - Form */}
+          <div className="space-y-4 lg:col-span-2">
+            {/* Basic Info */}
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Building2 className="h-5 w-5 text-primary" />
+                  Informations du contrôle
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="stationName">Gare *</Label>
+                    <Input
+                      id="stationName"
+                      placeholder="Paris Gare de Lyon"
+                      value={stationName}
+                      onChange={(e) => setStationName(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="platform">Quai *</Label>
+                    <Input
+                      id="platform"
+                      placeholder="5A"
+                      value={platform}
+                      onChange={(e) => setPlatform(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="origin">Provenance</Label>
+                    <Input
+                      id="origin"
+                      placeholder="Marseille"
+                      value={origin}
+                      onChange={(e) => setOrigin(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="destination">Destination</Label>
+                    <Input
+                      id="destination"
+                      placeholder="Paris"
+                      value={destination}
+                      onChange={(e) => setDestination(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="date">Date</Label>
+                    <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="time">Heure</Label>
+                    <Input id="time" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="passengers">Passagers *</Label>
+                    <Input
+                      id="passengers"
+                      type="number"
+                      min="0"
+                      placeholder="150"
+                      value={passengers}
+                      onChange={(e) => setPassengers(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Tarif Contrôle */}
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <FileText className="h-5 w-5 text-primary" />
+                  Tarif contrôle
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <Label>Type</Label>
+                  <TypeToggle value={tarifControleType} onChange={setTarifControleType} />
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Montant (€)"
+                    value={tarifControleMontant}
+                    onChange={(e) => setTarifControleMontant(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button type="button" onClick={addTarifControle} variant="secondary">
+                    <Plus className="mr-1 h-4 w-4" />
+                    Ajouter
+                  </Button>
+                </div>
+                <Counter
+                  label="STT 50"
+                  value={stt50Count}
+                  onChange={setStt50Count}
+                  variant="primary"
+                  showTotal={{ perUnit: 50, label: 'Total' }}
+                />
+              </CardContent>
+            </Card>
+
+            {/* PV */}
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <AlertTriangle className="h-5 w-5 text-destructive" />
+                  Procès-verbaux (PV)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <Label>Type</Label>
+                  <TypeToggle value={pvType} onChange={setPvType} />
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Montant (€)"
+                    value={pvMontant}
+                    onChange={(e) => setPvMontant(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button type="button" onClick={addPv} variant="secondary">
+                    <Plus className="mr-1 h-4 w-4" />
+                    Ajouter
+                  </Button>
+                </div>
+                <Counter
+                  label="STT 100"
+                  value={stt100Count}
+                  onChange={setStt100Count}
+                  variant="destructive"
+                  showTotal={{ perUnit: 100, label: 'Total' }}
+                />
+              </CardContent>
+            </Card>
+
+            {/* RI & Commentaire */}
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <User className="h-5 w-5 text-primary" />
+                  Relevés d'identité (RI)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Counter label="RI positif" value={riPositif} onChange={setRiPositif} variant="success" />
+                  <Counter label="RI négatif" value={riNegatif} onChange={setRiNegatif} variant="destructive" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="commentaire">Commentaire</Label>
+                  <Textarea
+                    id="commentaire"
+                    placeholder="Notes supplémentaires..."
+                    value={commentaire}
+                    onChange={(e) => setCommentaire(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right column - Summary */}
+          <div className="space-y-4">
+            <Card className="sticky top-20">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">Récapitulatif</CardTitle>
+                <CardDescription>Taux de fraude en temps réel</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Fraud Rate Display */}
+                <div className={cn(
+                  'rounded-xl p-4 text-center',
+                  fraudRate > 5 ? 'bg-destructive/20' : fraudRate > 2 ? 'bg-warning/20' : 'bg-success/20'
+                )}>
+                  <p className="text-sm text-muted-foreground">Taux de fraude</p>
+                  <p className={cn(
+                    'text-4xl font-bold',
+                    fraudRate > 5 ? 'text-destructive' : fraudRate > 2 ? 'text-warning' : 'text-success'
+                  )}>
+                    {fraudRate.toFixed(1)}%
+                  </p>
+                  <p className="text-sm text-muted-foreground">{fraudCount} fraudes / {passengersNum} passagers</p>
+                </div>
+
+                {/* Tarifs Contrôle List */}
+                <TarifList
+                  title="Tarifs contrôle"
+                  items={tarifsControle}
+                  onRemove={removeTarifControle}
+                  total={totalTarifsControle}
+                  variant="primary"
+                />
+
+                {/* PV List */}
+                <TarifList
+                  title="Procès-verbaux"
+                  items={pvList}
+                  onRemove={removePv}
+                  total={totalPV}
+                  variant="destructive"
+                />
+
+                {/* RI Summary */}
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-muted-foreground">Relevés d'identité</h4>
+                  <div className="flex gap-2">
+                    <div className="flex-1 rounded-lg bg-success/10 p-2 text-center">
+                      <p className="text-lg font-bold text-success">{riPositif}</p>
+                      <p className="text-xs text-muted-foreground">Positifs</p>
+                    </div>
+                    <div className="flex-1 rounded-lg bg-destructive/10 p-2 text-center">
+                      <p className="text-lg font-bold text-destructive">{riNegatif}</p>
+                      <p className="text-xs text-muted-foreground">Négatifs</p>
+                    </div>
+                  </div>
+                </div>
+
+                <Button type="submit" variant="hero" size="lg" className="w-full">
+                  <Plus className="h-4 w-4" />
+                  Enregistrer le contrôle
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </form>
 
       <ControlsTable
         title="Historique des contrôles en gare"
