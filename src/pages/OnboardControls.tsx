@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Train, AlertTriangle, FileText, User } from 'lucide-react';
+import { Plus, Train, AlertTriangle, FileText, User, Download, FileCode } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,9 @@ import { ControlsTable } from '@/components/controls/ControlsTable';
 import { Counter } from '@/components/controls/Counter';
 import { TypeToggle, TarifType } from '@/components/controls/TypeToggle';
 import { TarifList } from '@/components/controls/TarifList';
+import { CitySelect } from '@/components/controls/CitySelect';
 import { useOnboardControls, OnboardControl, TarifItem } from '@/hooks/useControls';
+import { exportToHTML, exportToPDF } from '@/utils/exportControls';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -20,7 +22,8 @@ export default function OnboardControls() {
 
   // Basic info
   const [trainNumber, setTrainNumber] = useState('');
-  const [route, setRoute] = useState('');
+  const [origin, setOrigin] = useState('');
+  const [destination, setDestination] = useState('');
   const [date, setDate] = useState(today);
   const [time, setTime] = useState(now);
   const [passengers, setPassengers] = useState('');
@@ -80,7 +83,8 @@ export default function OnboardControls() {
 
   const resetForm = () => {
     setTrainNumber('');
-    setRoute('');
+    setOrigin('');
+    setDestination('');
     setDate(today);
     setTime(new Date().toTimeString().slice(0, 5));
     setPassengers('');
@@ -97,14 +101,15 @@ export default function OnboardControls() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!trainNumber.trim() || !route.trim() || !passengers) {
+    if (!trainNumber.trim() || !origin || !destination || !passengers) {
       toast.error('Veuillez remplir les champs obligatoires');
       return;
     }
 
     addControl({
       trainNumber,
-      route,
+      origin,
+      destination,
       date,
       time,
       passengers: passengersNum,
@@ -126,6 +131,24 @@ export default function OnboardControls() {
     resetForm();
   };
 
+  const handleExportHTML = () => {
+    if (controls.length === 0) {
+      toast.error('Aucun contrôle à exporter');
+      return;
+    }
+    exportToHTML(controls, 'onboard');
+    toast.success('Export HTML téléchargé');
+  };
+
+  const handleExportPDF = () => {
+    if (controls.length === 0) {
+      toast.error('Aucun contrôle à exporter');
+      return;
+    }
+    exportToPDF(controls, 'onboard');
+    toast.success('Export PDF ouvert');
+  };
+
   const columns = [
     {
       key: 'trainNumber',
@@ -133,9 +156,11 @@ export default function OnboardControls() {
       render: (item: OnboardControl) => <span className="font-medium">{item.trainNumber}</span>,
     },
     {
-      key: 'route',
+      key: 'trajet',
       label: 'Trajet',
-      render: (item: OnboardControl) => <span className="text-muted-foreground">{item.route}</span>,
+      render: (item: OnboardControl) => (
+        <span className="text-muted-foreground">{item.origin} → {item.destination}</span>
+      ),
     },
     {
       key: 'datetime',
@@ -175,9 +200,21 @@ export default function OnboardControls() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Contrôles à bord</h1>
-        <p className="text-muted-foreground">Enregistrez et consultez les contrôles effectués dans les trains</p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Contrôles à bord</h1>
+          <p className="text-muted-foreground">Enregistrez et consultez les contrôles effectués dans les trains</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportHTML}>
+            <FileCode className="mr-1 h-4 w-4" />
+            HTML
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExportPDF}>
+            <Download className="mr-1 h-4 w-4" />
+            PDF
+          </Button>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -193,7 +230,7 @@ export default function OnboardControls() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-3">
                   <div className="space-y-2">
                     <Label htmlFor="trainNumber">Numéro de train *</Label>
                     <Input
@@ -204,12 +241,21 @@ export default function OnboardControls() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="route">Trajet *</Label>
-                    <Input
-                      id="route"
-                      placeholder="Paris → Lyon"
-                      value={route}
-                      onChange={(e) => setRoute(e.target.value)}
+                    <Label htmlFor="origin">Origine *</Label>
+                    <CitySelect
+                      id="origin"
+                      value={origin}
+                      onChange={setOrigin}
+                      placeholder="Ville de départ"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="destination">Destination *</Label>
+                    <CitySelect
+                      id="destination"
+                      value={destination}
+                      onChange={setDestination}
+                      placeholder="Ville d'arrivée"
                     />
                   </div>
                 </div>

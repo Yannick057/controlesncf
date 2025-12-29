@@ -24,7 +24,7 @@ export function RecentControlsTable({ onboardControls, stationControls }: Recent
     ...onboardControls.map((c) => ({
       type: 'train' as const,
       id: c.id,
-      label: `${c.trainNumber} - ${c.route}`,
+      label: `${c.trainNumber} - ${c.origin} → ${c.destination}`,
       datetime: `${c.date} ${c.time}`,
       passengers: c.passengers,
       fraudCount: c.fraudCount,

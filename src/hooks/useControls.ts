@@ -9,7 +9,8 @@ export interface TarifItem {
 export interface OnboardControl {
   id: number;
   trainNumber: string;
-  route: string;
+  origin: string;
+  destination: string;
   date: string;
   time: string;
   passengers: number;
