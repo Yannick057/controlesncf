@@ -7,6 +7,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useOnboardControls, useStationControls } from '@/hooks/useControls';
+import { usePWA } from '@/hooks/usePWA';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -18,19 +19,27 @@ export default function Settings() {
   const { controls: onboardControls, clearControls: clearOnboard, setControls: setOnboard } = useOnboardControls();
   const { controls: stationControls, clearControls: clearStation, setControls: setStation } = useStationControls();
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [pwaStatus, setPwaStatus] = useState<'checking' | 'installable' | 'installed'>('checking');
+  const { isInstalled, isInstallable, install } = usePWA();
 
   useEffect(() => {
     const saved = localStorage.getItem('notifications_enabled');
     setNotificationsEnabled(saved === 'true');
-
-    // Check PWA status
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setPwaStatus('installed');
-    } else {
-      setPwaStatus('installable');
-    }
   }, []);
+
+  const handleInstallApp = async () => {
+    const success = await install();
+    if (success) {
+      toast.success('Application installée avec succès !');
+    } else if (!isInstallable) {
+      // Show manual instructions
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      if (isIOS) {
+        toast.info('Appuyez sur Partager puis "Sur l\'écran d\'accueil"');
+      } else {
+        toast.info('Utilisez le menu du navigateur pour installer l\'application');
+      }
+    }
+  };
 
   const handleNotificationToggle = async () => {
     if (!notificationsEnabled) {
@@ -79,12 +88,12 @@ export default function Settings() {
             if (data.onboardControls) {
               const merged = [...data.onboardControls, ...onboardControls];
               setOnboard(merged);
-              localStorage.setItem('onboard_controls', JSON.stringify(merged));
+              localStorage.setItem('sncf-controls-onboard', JSON.stringify(merged));
             }
             if (data.stationControls) {
               const merged = [...data.stationControls, ...stationControls];
               setStation(merged);
-              localStorage.setItem('station_controls', JSON.stringify(merged));
+              localStorage.setItem('sncf-controls-station', JSON.stringify(merged));
             }
             toast.success('Données importées avec succès');
           } catch {
@@ -207,27 +216,31 @@ export default function Settings() {
           <div className="flex items-center gap-3">
             <div className={cn(
               'flex h-10 w-10 items-center justify-center rounded-lg',
-              pwaStatus === 'installed' ? 'bg-success/20 text-success' : 'bg-warning/20 text-warning'
+              isInstalled ? 'bg-success/20 text-success' : 'bg-warning/20 text-warning'
             )}>
-              {pwaStatus === 'installed' ? <Check className="h-5 w-5" /> : <Smartphone className="h-5 w-5" />}
+              {isInstalled ? <Check className="h-5 w-5" /> : <Smartphone className="h-5 w-5" />}
             </div>
-            <div>
+            <div className="flex-1">
               <p className="font-medium">
-                {pwaStatus === 'checking' && 'Vérification...'}
-                {pwaStatus === 'installable' && 'Application non installée'}
-                {pwaStatus === 'installed' && 'Application installée'}
+                {isInstalled ? 'Application installée' : 'Application non installée'}
               </p>
               <p className="text-sm text-muted-foreground">
-                {pwaStatus === 'installed' 
+                {isInstalled 
                   ? 'Vous utilisez la version installée'
                   : 'Ajoutez l\'app à votre écran d\'accueil'}
               </p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-3">
-            <div className="text-sm text-muted-foreground">
-              <span className="font-medium">Version:</span> 1.0.0
-            </div>
+          
+          {!isInstalled && (
+            <Button onClick={handleInstallApp} className="w-full gap-2">
+              <Download className="h-4 w-4" />
+              Installer l'application
+            </Button>
+          )}
+          
+          <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+            <span><span className="font-medium">Version:</span> 1.0.0</span>
           </div>
         </CardContent>
       </Card>
@@ -314,7 +327,7 @@ export default function Settings() {
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Dernière mise à jour</span>
-              <span className="font-medium">27/12/2025</span>
+              <span className="font-medium">29/12/2025</span>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
