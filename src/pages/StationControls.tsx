@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Building2, AlertTriangle, FileText, User } from 'lucide-react';
+import { Plus, Building2, AlertTriangle, FileText, User, Download, FileCode } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,9 @@ import { ControlsTable } from '@/components/controls/ControlsTable';
 import { Counter } from '@/components/controls/Counter';
 import { TypeToggle, TarifType } from '@/components/controls/TypeToggle';
 import { TarifList } from '@/components/controls/TarifList';
+import { CitySelect } from '@/components/controls/CitySelect';
 import { useStationControls, StationControl, TarifItem } from '@/hooks/useControls';
+import { exportToHTML, exportToPDF } from '@/utils/exportControls';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -129,6 +131,24 @@ export default function StationControls() {
     resetForm();
   };
 
+  const handleExportHTML = () => {
+    if (controls.length === 0) {
+      toast.error('Aucun contrôle à exporter');
+      return;
+    }
+    exportToHTML(controls, 'station');
+    toast.success('Export HTML téléchargé');
+  };
+
+  const handleExportPDF = () => {
+    if (controls.length === 0) {
+      toast.error('Aucun contrôle à exporter');
+      return;
+    }
+    exportToPDF(controls, 'station');
+    toast.success('Export PDF ouvert');
+  };
+
   const columns = [
     {
       key: 'stationName',
@@ -140,6 +160,15 @@ export default function StationControls() {
       label: 'Quai',
       render: (item: StationControl) => (
         <span className="rounded-md bg-secondary px-2 py-0.5 text-sm">{item.platform}</span>
+      ),
+    },
+    {
+      key: 'trajet',
+      label: 'Trajet',
+      render: (item: StationControl) => (
+        <span className="text-muted-foreground">
+          {item.origin && item.destination ? `${item.origin} → ${item.destination}` : '-'}
+        </span>
       ),
     },
     {
@@ -180,9 +209,21 @@ export default function StationControls() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Contrôles en gare</h1>
-        <p className="text-muted-foreground">Enregistrez et consultez les contrôles effectués dans les gares</p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Contrôles en gare</h1>
+          <p className="text-muted-foreground">Enregistrez et consultez les contrôles effectués dans les gares</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportHTML}>
+            <FileCode className="mr-1 h-4 w-4" />
+            HTML
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExportPDF}>
+            <Download className="mr-1 h-4 w-4" />
+            PDF
+          </Button>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -201,11 +242,11 @@ export default function StationControls() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="stationName">Gare *</Label>
-                    <Input
+                    <CitySelect
                       id="stationName"
-                      placeholder="Paris Gare de Lyon"
                       value={stationName}
-                      onChange={(e) => setStationName(e.target.value)}
+                      onChange={setStationName}
+                      placeholder="Sélectionner la gare"
                     />
                   </div>
                   <div className="space-y-2">
@@ -218,21 +259,21 @@ export default function StationControls() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="origin">Provenance</Label>
-                    <Input
+                    <Label htmlFor="origin">Origine</Label>
+                    <CitySelect
                       id="origin"
-                      placeholder="Marseille"
                       value={origin}
-                      onChange={(e) => setOrigin(e.target.value)}
+                      onChange={setOrigin}
+                      placeholder="Provenance du train"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="destination">Destination</Label>
-                    <Input
+                    <CitySelect
                       id="destination"
-                      placeholder="Paris"
                       value={destination}
-                      onChange={(e) => setDestination(e.target.value)}
+                      onChange={setDestination}
+                      placeholder="Destination du train"
                     />
                   </div>
                 </div>
