@@ -6,6 +6,12 @@ export interface TarifItem {
   montant: number;
 }
 
+export interface TarifBordItem {
+  id: number;
+  montant: number;
+  description?: string;
+}
+
 export interface OnboardControl {
   id: number;
   trainNumber: string;
@@ -14,8 +20,8 @@ export interface OnboardControl {
   date: string;
   time: string;
   passengers: number;
-  // Tarif à bord
-  tarifBord: number;
+  // Tarif à bord (ne compte pas pour la fraude)
+  tarifsBord: TarifBordItem[];
   // Tarif contrôle
   tarifsControle: TarifItem[];
   stt50Count: number;
@@ -41,6 +47,8 @@ export interface StationControl {
   date: string;
   time: string;
   passengers: number;
+  // Tarif à bord (ne compte pas pour la fraude)
+  tarifsBord: TarifBordItem[];
   // Tarif contrôle
   tarifsControle: TarifItem[];
   stt50Count: number;

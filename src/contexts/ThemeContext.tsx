@@ -1,14 +1,24 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-type Theme = 'dark' | 'light' | 'auto';
+export type Theme = 'dark' | 'light' | 'auto' | 'matrix' | 'simpson' | 'stranger' | 'neon';
 
 interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
-  effectiveTheme: 'dark' | 'light';
+  effectiveTheme: Theme;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+
+export const THEME_OPTIONS: { value: Theme; label: string; icon: string }[] = [
+  { value: 'light', label: 'Clair', icon: '☀️' },
+  { value: 'dark', label: 'Sombre', icon: '🌙' },
+  { value: 'auto', label: 'Automatique', icon: '🔄' },
+  { value: 'matrix', label: 'Matrix', icon: '💚' },
+  { value: 'simpson', label: 'Simpson', icon: '💛' },
+  { value: 'stranger', label: 'Stranger Things', icon: '🔴' },
+  { value: 'neon', label: 'Néon', icon: '💜' },
+];
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>('dark');
@@ -30,10 +40,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return () => mediaQuery.removeEventListener('change', handler);
   }, []);
 
-  const effectiveTheme = theme === 'auto' ? systemTheme : theme;
+  const effectiveTheme: Theme = theme === 'auto' ? systemTheme : theme;
 
   useEffect(() => {
-    document.documentElement.classList.remove('dark', 'light');
+    document.documentElement.classList.remove('dark', 'light', 'matrix', 'simpson', 'stranger', 'neon');
     document.documentElement.classList.add(effectiveTheme);
   }, [effectiveTheme]);
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Train, AlertTriangle, FileText, User, Download, FileCode } from 'lucide-react';
+import { Plus, Train, AlertTriangle, FileText, User, Download, FileCode, Ticket } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,8 +9,9 @@ import { ControlsTable } from '@/components/controls/ControlsTable';
 import { Counter } from '@/components/controls/Counter';
 import { TypeToggle, TarifType } from '@/components/controls/TypeToggle';
 import { TarifList } from '@/components/controls/TarifList';
+import { TarifBordList } from '@/components/controls/TarifBordList';
 import { CitySelect } from '@/components/controls/CitySelect';
-import { useOnboardControls, OnboardControl, TarifItem } from '@/hooks/useControls';
+import { useOnboardControls, OnboardControl, TarifItem, TarifBordItem } from '@/hooks/useControls';
 import { exportToHTML, exportToPDF } from '@/utils/exportControls';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -27,7 +28,11 @@ export default function OnboardControls() {
   const [date, setDate] = useState(today);
   const [time, setTime] = useState(now);
   const [passengers, setPassengers] = useState('');
-  const [tarifBord, setTarifBord] = useState('');
+
+  // Tarif à bord (ne compte pas pour la fraude)
+  const [tarifBordMontant, setTarifBordMontant] = useState('');
+  const [tarifBordDescription, setTarifBordDescription] = useState('');
+  const [tarifsBord, setTarifsBord] = useState<TarifBordItem[]>([]);
 
   // Tarif contrôle
   const [tarifControleType, setTarifControleType] = useState<TarifType>('STT');
@@ -47,11 +52,28 @@ export default function OnboardControls() {
   const [commentaire, setCommentaire] = useState('');
 
   // Calculated values
+  const totalTarifsBord = tarifsBord.reduce((sum, t) => sum + t.montant, 0);
   const totalTarifsControle = tarifsControle.reduce((sum, t) => sum + t.montant, 0) + (stt50Count * 50);
   const totalPV = pvList.reduce((sum, t) => sum + t.montant, 0) + (stt100Count * 100);
+  // Tarif à bord ne compte PAS pour la fraude
   const fraudCount = tarifsControle.length + pvList.length + stt50Count + stt100Count;
   const passengersNum = parseInt(passengers) || 0;
   const fraudRate = passengersNum > 0 ? (fraudCount / passengersNum) * 100 : 0;
+
+  const addTarifBord = () => {
+    const montant = parseFloat(tarifBordMontant);
+    if (!montant || montant <= 0) {
+      toast.error('Montant invalide');
+      return;
+    }
+    setTarifsBord([...tarifsBord, { id: Date.now(), montant, description: tarifBordDescription || undefined }]);
+    setTarifBordMontant('');
+    setTarifBordDescription('');
+  };
+
+  const removeTarifBord = (id: number) => {
+    setTarifsBord(tarifsBord.filter((t) => t.id !== id));
+  };
 
   const addTarifControle = () => {
     const montant = parseFloat(tarifControleMontant);
@@ -88,7 +110,9 @@ export default function OnboardControls() {
     setDate(today);
     setTime(new Date().toTimeString().slice(0, 5));
     setPassengers('');
-    setTarifBord('');
+    setTarifsBord([]);
+    setTarifBordMontant('');
+    setTarifBordDescription('');
     setTarifsControle([]);
     setStt50Count(0);
     setPvList([]);
@@ -113,7 +137,7 @@ export default function OnboardControls() {
       date,
       time,
       passengers: passengersNum,
-      tarifBord: parseFloat(tarifBord) || 0,
+      tarifsBord,
       tarifsControle,
       stt50Count,
       pvList,
@@ -259,7 +283,7 @@ export default function OnboardControls() {
                     />
                   </div>
                 </div>
-                <div className="grid gap-4 sm:grid-cols-4">
+                <div className="grid gap-4 sm:grid-cols-3">
                   <div className="space-y-2">
                     <Label htmlFor="date">Date</Label>
                     <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -279,18 +303,41 @@ export default function OnboardControls() {
                       onChange={(e) => setPassengers(e.target.value)}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="tarifBord">Tarif à bord (€)</Label>
-                    <Input
-                      id="tarifBord"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="0"
-                      value={tarifBord}
-                      onChange={(e) => setTarifBord(e.target.value)}
-                    />
-                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Tarif à bord - SEPARATE SECTION */}
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Ticket className="h-5 w-5 text-accent" />
+                  Tarif à bord
+                </CardTitle>
+                <CardDescription>Ces tarifs ne comptent pas dans le taux de fraude</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    placeholder="Description (optionnel)"
+                    value={tarifBordDescription}
+                    onChange={(e) => setTarifBordDescription(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Montant (€)"
+                    value={tarifBordMontant}
+                    onChange={(e) => setTarifBordMontant(e.target.value)}
+                    className="w-32"
+                  />
+                  <Button type="button" onClick={addTarifBord} variant="secondary">
+                    <Plus className="mr-1 h-4 w-4" />
+                    Ajouter
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -421,6 +468,13 @@ export default function OnboardControls() {
                   <p className="text-sm text-muted-foreground">{fraudCount} fraudes / {passengersNum} passagers</p>
                 </div>
 
+                {/* Tarifs à bord List */}
+                <TarifBordList
+                  items={tarifsBord}
+                  onRemove={removeTarifBord}
+                  total={totalTarifsBord}
+                />
+
                 {/* Tarifs Contrôle List */}
                 <TarifList
                   title="Tarifs contrôle"
@@ -469,7 +523,7 @@ export default function OnboardControls() {
         description={`${controls.length} contrôle${controls.length > 1 ? 's' : ''} enregistré${controls.length > 1 ? 's' : ''}`}
         data={controls}
         columns={columns}
-        emptyMessage="Aucun contrôle à bord enregistré"
+        emptyMessage="Aucun contrôle enregistré pour le moment"
       />
     </div>
   );
