@@ -1,4 +1,4 @@
-import { LayoutDashboard, Train, Building2, Settings } from 'lucide-react';
+import { LayoutDashboard, Train, Building2, Settings, History } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -6,6 +6,7 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/onboard', icon: Train, label: 'À Bord' },
   { to: '/station', icon: Building2, label: 'En Gare' },
+  { to: '/history', icon: History, label: 'Historique' },
   { to: '/settings', icon: Settings, label: 'Paramètres' },
 ];
 
@@ -40,7 +41,7 @@ export function Navigation() {
 export function MobileNavigation() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 md:hidden">
-      <div className="grid grid-cols-4 gap-1 p-2">
+      <div className="grid grid-cols-5 gap-1 p-2">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
