@@ -93,12 +93,38 @@ export function useOnboardControls() {
     return newControl;
   }, []);
 
+  const updateControl = useCallback((id: number, control: Omit<OnboardControl, 'id' | 'fraudRate' | 'timestamp'>) => {
+    setControls((prev) => {
+      const updated = prev.map((c) => {
+        if (c.id === id) {
+          return {
+            ...control,
+            id,
+            fraudRate: control.passengers > 0 ? (control.fraudCount / control.passengers) * 100 : 0,
+            timestamp: c.timestamp,
+          };
+        }
+        return c;
+      });
+      localStorage.setItem('sncf-controls-onboard', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  const deleteControl = useCallback((id: number) => {
+    setControls((prev) => {
+      const updated = prev.filter((c) => c.id !== id);
+      localStorage.setItem('sncf-controls-onboard', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   const clearControls = useCallback(() => {
     setControls([]);
     localStorage.removeItem('sncf-controls-onboard');
   }, []);
 
-  return { controls, addControl, clearControls, setControls };
+  return { controls, addControl, updateControl, deleteControl, clearControls, setControls };
 }
 
 export function useStationControls() {
@@ -129,12 +155,38 @@ export function useStationControls() {
     return newControl;
   }, []);
 
+  const updateControl = useCallback((id: number, control: Omit<StationControl, 'id' | 'fraudRate' | 'timestamp'>) => {
+    setControls((prev) => {
+      const updated = prev.map((c) => {
+        if (c.id === id) {
+          return {
+            ...control,
+            id,
+            fraudRate: control.passengers > 0 ? (control.fraudCount / control.passengers) * 100 : 0,
+            timestamp: c.timestamp,
+          };
+        }
+        return c;
+      });
+      localStorage.setItem('sncf-controls-station', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  const deleteControl = useCallback((id: number) => {
+    setControls((prev) => {
+      const updated = prev.filter((c) => c.id !== id);
+      localStorage.setItem('sncf-controls-station', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   const clearControls = useCallback(() => {
     setControls([]);
     localStorage.removeItem('sncf-controls-station');
   }, []);
 
-  return { controls, addControl, clearControls, setControls };
+  return { controls, addControl, updateControl, deleteControl, clearControls, setControls };
 }
 
 export function useControlStats(onboardControls: OnboardControl[], stationControls: StationControl[]) {
@@ -160,6 +212,10 @@ export function useControlStats(onboardControls: OnboardControl[], stationContro
     onboardControls.reduce((sum, c) => sum + c.pvList.reduce((s, t) => s + t.montant, 0) + (c.stt100Count * 100), 0) +
     stationControls.reduce((sum, c) => sum + c.pvList.reduce((s, t) => s + t.montant, 0) + (c.stt100Count * 100), 0);
 
+  const totalTarifsBord = 
+    onboardControls.reduce((sum, c) => sum + c.tarifsBord.reduce((s, t) => s + t.montant, 0), 0) +
+    stationControls.reduce((sum, c) => sum + c.tarifsBord.reduce((s, t) => s + t.montant, 0), 0);
+
   return {
     totalOnboard,
     totalStation,
@@ -169,5 +225,6 @@ export function useControlStats(onboardControls: OnboardControl[], stationContro
     fraudRate,
     totalTarifsControle,
     totalPV,
+    totalTarifsBord,
   };
 }
