@@ -1,29 +1,30 @@
 import { useState, useMemo } from 'react';
-import { Train, Building2, Calendar, Filter, Download, FileCode, Search, Edit, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Train, Building2, Calendar, Filter, Download, Search, Edit, Trash2, ChevronDown, ChevronUp, Mail, X } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useOnboardControls, useStationControls, OnboardControl, StationControl, TarifItem } from '@/hooks/useControls';
+import { useOnboardControls, useStationControls, OnboardControl, StationControl, TarifItem, TarifBordItem } from '@/hooks/useControls';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { TarifList } from '@/components/controls/TarifList';
+import { TarifBordList } from '@/components/controls/TarifBordList';
+import { Counter } from '@/components/controls/Counter';
 
-type SortBy = 'date' | 'train' | 'station' | 'fraudRate';
+type SortBy = 'date' | 'train' | 'fraudRate';
 type SortOrder = 'asc' | 'desc';
 
-// Helper to format tarif detail
 function formatTarifDetail(items: TarifItem[], sttCount: number, sttAmount: number): string {
-  const sttTotal = sttCount * sttAmount;
   const parts: string[] = [];
   
   if (sttCount > 0) {
-    parts.push(`STT ${sttAmount}: ${sttCount}x = ${sttTotal.toFixed(2)}€`);
+    parts.push(`STT ${sttAmount}: ${sttCount}x = ${(sttCount * sttAmount).toFixed(2)}€`);
   }
   
-  // Group RNV and others with detail
   const grouped: Record<string, { count: number; amounts: number[] }> = {};
   items.forEach((item) => {
     if (!grouped[item.type]) {
@@ -35,10 +36,8 @@ function formatTarifDetail(items: TarifItem[], sttCount: number, sttAmount: numb
   
   Object.entries(grouped).forEach(([type, data]) => {
     if (type === 'STT') {
-      // STT with individual amounts
       parts.push(`${type}: ${data.count}x (${data.amounts.map(a => `${a.toFixed(2)}€`).join(', ')})`);
     } else {
-      // RNV, etc. with full detail
       parts.push(`${type}: ${data.amounts.map(a => `${a.toFixed(2)}€`).join(' + ')} = ${data.amounts.reduce((s, a) => s + a, 0).toFixed(2)}€`);
     }
   });
@@ -47,8 +46,8 @@ function formatTarifDetail(items: TarifItem[], sttCount: number, sttAmount: numb
 }
 
 export default function ControlHistory() {
-  const { controls: onboardControls, deleteControl: deleteOnboard } = useOnboardControls();
-  const { controls: stationControls, deleteControl: deleteStation } = useStationControls();
+  const { controls: onboardControls, deleteControl: deleteOnboard, updateControl: updateOnboard } = useOnboardControls();
+  const { controls: stationControls, deleteControl: deleteStation, updateControl: updateStation } = useStationControls();
   
   const [sortBy, setSortBy] = useState<SortBy>('date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -57,15 +56,27 @@ export default function ControlHistory() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   
-  // Export selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showExportDialog, setShowExportDialog] = useState(false);
-  const [exportType, setExportType] = useState<'html' | 'pdf'>('html');
+  const [exportType, setExportType] = useState<'html' | 'pdf' | 'email'>('html');
+  const [emailAddress, setEmailAddress] = useState('');
   
-  // Expanded rows for detail
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  
+  // Edit state
+  const [editingControl, setEditingControl] = useState<(OnboardControl & { _type: 'onboard' }) | (StationControl & { _type: 'station' }) | null>(null);
+  const [editForm, setEditForm] = useState<{
+    passengers: number;
+    tarifsBord: TarifBordItem[];
+    tarifsControle: TarifItem[];
+    stt50Count: number;
+    pvList: TarifItem[];
+    stt100Count: number;
+    riPositif: number;
+    riNegatif: number;
+    commentaire: string;
+  } | null>(null);
 
-  // Combine and sort controls
   const combinedControls = useMemo(() => {
     const combined: Array<(OnboardControl & { _type: 'onboard' }) | (StationControl & { _type: 'station' })> = [];
     
@@ -76,7 +87,6 @@ export default function ControlHistory() {
       stationControls.forEach((c) => combined.push({ ...c, _type: 'station' as const }));
     }
     
-    // Apply search filter
     let filtered = combined;
     if (searchTrain) {
       const search = searchTrain.toLowerCase();
@@ -88,7 +98,6 @@ export default function ControlHistory() {
       });
     }
     
-    // Apply date filter
     if (dateFrom) {
       filtered = filtered.filter((c) => c.date >= dateFrom);
     }
@@ -96,7 +105,6 @@ export default function ControlHistory() {
       filtered = filtered.filter((c) => c.date <= dateTo);
     }
     
-    // Sort
     filtered.sort((a, b) => {
       let comparison = 0;
       switch (sortBy) {
@@ -120,7 +128,6 @@ export default function ControlHistory() {
     return filtered;
   }, [onboardControls, stationControls, filterType, searchTrain, dateFrom, dateTo, sortBy, sortOrder]);
 
-  // Group by date for day view
   const groupedByDate = useMemo(() => {
     const groups: Record<string, typeof combinedControls> = {};
     combinedControls.forEach((c) => {
@@ -132,7 +139,6 @@ export default function ControlHistory() {
     return groups;
   }, [combinedControls]);
 
-  // Group by train for train view
   const groupedByTrain = useMemo(() => {
     const groups: Record<string, typeof combinedControls> = {};
     combinedControls.forEach((c) => {
@@ -165,6 +171,25 @@ export default function ControlHistory() {
     setSelectedIds(new Set());
   };
 
+  const selectByDate = (date: string) => {
+    const newSet = new Set(selectedIds);
+    combinedControls.filter((c) => c.date === date).forEach((c) => {
+      newSet.add(`${c._type}-${c.id}`);
+    });
+    setSelectedIds(newSet);
+  };
+
+  const selectByTrain = (trainKey: string) => {
+    const newSet = new Set(selectedIds);
+    combinedControls.filter((c) => {
+      const key = c._type === 'onboard' ? c.trainNumber : c.stationName;
+      return key === trainKey;
+    }).forEach((c) => {
+      newSet.add(`${c._type}-${c.id}`);
+    });
+    setSelectedIds(newSet);
+  };
+
   const handleDelete = (type: 'onboard' | 'station', id: number) => {
     if (confirm('Supprimer ce contrôle ?')) {
       if (type === 'onboard') {
@@ -186,6 +211,70 @@ export default function ControlHistory() {
     setExpandedRows(newSet);
   };
 
+  const startEdit = (control: (OnboardControl & { _type: 'onboard' }) | (StationControl & { _type: 'station' })) => {
+    setEditingControl(control);
+    setEditForm({
+      passengers: control.passengers,
+      tarifsBord: [...control.tarifsBord],
+      tarifsControle: [...control.tarifsControle],
+      stt50Count: control.stt50Count,
+      pvList: [...control.pvList],
+      stt100Count: control.stt100Count,
+      riPositif: control.riPositif,
+      riNegatif: control.riNegatif,
+      commentaire: control.commentaire,
+    });
+  };
+
+  const saveEdit = () => {
+    if (!editingControl || !editForm) return;
+
+    const fraudCount = editForm.tarifsControle.length + editForm.stt50Count + editForm.pvList.length + editForm.stt100Count;
+
+    if (editingControl._type === 'onboard') {
+      updateOnboard(editingControl.id, {
+        trainNumber: editingControl.trainNumber,
+        origin: editingControl.origin,
+        destination: editingControl.destination,
+        date: editingControl.date,
+        time: editingControl.time,
+        passengers: editForm.passengers,
+        tarifsBord: editForm.tarifsBord,
+        tarifsControle: editForm.tarifsControle,
+        stt50Count: editForm.stt50Count,
+        pvList: editForm.pvList,
+        stt100Count: editForm.stt100Count,
+        riPositif: editForm.riPositif,
+        riNegatif: editForm.riNegatif,
+        commentaire: editForm.commentaire,
+        fraudCount,
+      });
+    } else {
+      updateStation(editingControl.id, {
+        stationName: editingControl.stationName,
+        platform: editingControl.platform,
+        origin: editingControl.origin,
+        destination: editingControl.destination,
+        date: editingControl.date,
+        time: editingControl.time,
+        passengers: editForm.passengers,
+        tarifsBord: editForm.tarifsBord,
+        tarifsControle: editForm.tarifsControle,
+        stt50Count: editForm.stt50Count,
+        pvList: editForm.pvList,
+        stt100Count: editForm.stt100Count,
+        riPositif: editForm.riPositif,
+        riNegatif: editForm.riNegatif,
+        commentaire: editForm.commentaire,
+        fraudCount,
+      });
+    }
+
+    toast.success('Contrôle modifié');
+    setEditingControl(null);
+    setEditForm(null);
+  };
+
   const handleExport = () => {
     const selectedControls = combinedControls.filter((c) => 
       selectedIds.has(`${c._type}-${c.id}`)
@@ -196,9 +285,19 @@ export default function ControlHistory() {
       return;
     }
 
-    const html = generateExportHTML(selectedControls);
-    
-    if (exportType === 'html') {
+    const html = generateExportHTML(selectedControls, groupedByTrain);
+
+    if (exportType === 'email') {
+      if (!emailAddress) {
+        toast.error('Veuillez entrer une adresse email');
+        return;
+      }
+      // Create mailto link with HTML as body (simplified)
+      const subject = encodeURIComponent(`Export Contrôles SNCF - ${new Date().toLocaleDateString('fr-FR')}`);
+      const body = encodeURIComponent(`Veuillez trouver ci-joint l'export des ${selectedControls.length} contrôle(s) sélectionné(s).\n\nNote: Pour un export complet avec mise en forme, veuillez utiliser l'export HTML et joindre le fichier à votre email.`);
+      window.open(`mailto:${emailAddress}?subject=${subject}&body=${body}`);
+      toast.success('Client email ouvert');
+    } else if (exportType === 'html') {
       const blob = new Blob([html], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -219,14 +318,17 @@ export default function ControlHistory() {
     setShowExportDialog(false);
   };
 
+  const uniqueDates = [...new Set(combinedControls.map((c) => c.date))].sort().reverse();
+  const uniqueTrains = [...new Set(combinedControls.map((c) => c._type === 'onboard' ? c.trainNumber : c.stationName))].sort();
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Historique des contrôles</h1>
           <p className="text-muted-foreground">
-            {combinedControls.length} contrôle{combinedControls.length > 1 ? 's' : ''} • 
-            {selectedIds.size > 0 && ` ${selectedIds.size} sélectionné${selectedIds.size > 1 ? 's' : ''}`}
+            {combinedControls.length} contrôle{combinedControls.length > 1 ? 's' : ''}
+            {selectedIds.size > 0 && ` • ${selectedIds.size} sélectionné${selectedIds.size > 1 ? 's' : ''}`}
           </p>
         </div>
         <div className="flex gap-2">
@@ -305,13 +407,45 @@ export default function ControlHistory() {
               </div>
             </div>
           </div>
-          <div className="mt-4 flex gap-2">
-            <Button variant="outline" size="sm" onClick={selectAllVisible}>
-              Tout sélectionner
-            </Button>
-            <Button variant="outline" size="sm" onClick={clearSelection}>
-              Désélectionner
-            </Button>
+          
+          {/* Quick selection buttons */}
+          <div className="mt-4 space-y-3">
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={selectAllVisible}>
+                Tout sélectionner
+              </Button>
+              <Button variant="outline" size="sm" onClick={clearSelection}>
+                Désélectionner
+              </Button>
+            </div>
+            
+            {/* Select by date */}
+            {uniqueDates.length > 0 && (
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Sélectionner par jour:</Label>
+                <div className="flex flex-wrap gap-1">
+                  {uniqueDates.slice(0, 7).map((date) => (
+                    <Button key={date} variant="ghost" size="sm" className="h-7 text-xs" onClick={() => selectByDate(date)}>
+                      {new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Select by train */}
+            {uniqueTrains.length > 0 && (
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Sélectionner par train:</Label>
+                <div className="flex flex-wrap gap-1">
+                  {uniqueTrains.slice(0, 10).map((train) => (
+                    <Button key={train} variant="ghost" size="sm" className="h-7 text-xs" onClick={() => selectByTrain(train)}>
+                      {train}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -362,7 +496,14 @@ export default function ControlHistory() {
                           {control.time} • {control.passengers} passagers • {control.fraudCount} fraudes ({control.fraudRate.toFixed(1)}%)
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => startEdit(control)}
+                        >
+                          <Edit className="h-4 w-4 text-primary" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -382,7 +523,6 @@ export default function ControlHistory() {
                     
                     {isExpanded && (
                       <div className="border-t bg-secondary/30 p-4 space-y-3">
-                        {/* Tarifs à bord */}
                         {control.tarifsBord.length > 0 && (
                           <div>
                             <h4 className="text-sm font-medium mb-1">Tarifs à bord</h4>
@@ -399,7 +539,6 @@ export default function ControlHistory() {
                           </div>
                         )}
                         
-                        {/* Tarifs contrôle avec détail */}
                         <div>
                           <h4 className="text-sm font-medium mb-1">Tarifs contrôle (détail)</h4>
                           <div className="text-sm text-muted-foreground">
@@ -407,7 +546,6 @@ export default function ControlHistory() {
                           </div>
                         </div>
                         
-                        {/* PV avec détail */}
                         <div>
                           <h4 className="text-sm font-medium mb-1">Procès-verbaux (détail)</h4>
                           <div className="text-sm text-muted-foreground">
@@ -415,7 +553,6 @@ export default function ControlHistory() {
                           </div>
                         </div>
                         
-                        {/* RI */}
                         <div className="flex gap-4">
                           <div>
                             <span className="text-sm text-muted-foreground">RI positifs: </span>
@@ -463,24 +600,154 @@ export default function ControlHistory() {
             </p>
             <div className="space-y-2">
               <Label>Format d'export</Label>
-              <Select value={exportType} onValueChange={(v) => setExportType(v as 'html' | 'pdf')}>
+              <Select value={exportType} onValueChange={(v) => setExportType(v as 'html' | 'pdf' | 'email')}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="html">HTML (téléchargement)</SelectItem>
                   <SelectItem value="pdf">PDF (impression)</SelectItem>
+                  <SelectItem value="email">Email</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            
+            {exportType === 'email' && (
+              <div className="space-y-2">
+                <Label>Adresse email</Label>
+                <Input
+                  type="email"
+                  placeholder="destinataire@email.com"
+                  value={emailAddress}
+                  onChange={(e) => setEmailAddress(e.target.value)}
+                />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowExportDialog(false)}>
               Annuler
             </Button>
             <Button onClick={handleExport}>
-              <Download className="mr-2 h-4 w-4" />
-              Exporter
+              {exportType === 'email' ? <Mail className="mr-2 h-4 w-4" /> : <Download className="mr-2 h-4 w-4" />}
+              {exportType === 'email' ? 'Envoyer' : 'Exporter'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editingControl} onOpenChange={(open) => !open && setEditingControl(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="h-5 w-5" />
+              Modifier le contrôle
+              {editingControl && (
+                <span className="text-muted-foreground font-normal">
+                  - {editingControl._type === 'onboard' ? editingControl.trainNumber : editingControl.stationName}
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {editForm && (
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <Label>Nombre de passagers</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={editForm.passengers}
+                  onChange={(e) => setEditForm({ ...editForm, passengers: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Tarifs à bord</Label>
+                <TarifBordList
+                  items={editForm.tarifsBord}
+                  onRemove={(id) => setEditForm({
+                    ...editForm,
+                    tarifsBord: editForm.tarifsBord.filter((t) => t.id !== id)
+                  })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Tarifs contrôle</Label>
+                <div className="flex items-center gap-4 mb-2">
+                  <span className="text-sm text-muted-foreground">STT 50€:</span>
+                  <Counter
+                    value={editForm.stt50Count}
+                    onChange={(v) => setEditForm({ ...editForm, stt50Count: v })}
+                    min={0}
+                  />
+                </div>
+                <TarifList
+                  items={editForm.tarifsControle}
+                  onRemove={(id) => setEditForm({
+                    ...editForm,
+                    tarifsControle: editForm.tarifsControle.filter((t) => t.id !== id)
+                  })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Procès-verbaux</Label>
+                <div className="flex items-center gap-4 mb-2">
+                  <span className="text-sm text-muted-foreground">STT 100€:</span>
+                  <Counter
+                    value={editForm.stt100Count}
+                    onChange={(v) => setEditForm({ ...editForm, stt100Count: v })}
+                    min={0}
+                  />
+                </div>
+                <TarifList
+                  items={editForm.pvList}
+                  onRemove={(id) => setEditForm({
+                    ...editForm,
+                    pvList: editForm.pvList.filter((t) => t.id !== id)
+                  })}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>RI Positifs</Label>
+                  <Counter
+                    value={editForm.riPositif}
+                    onChange={(v) => setEditForm({ ...editForm, riPositif: v })}
+                    min={0}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>RI Négatifs</Label>
+                  <Counter
+                    value={editForm.riNegatif}
+                    onChange={(v) => setEditForm({ ...editForm, riNegatif: v })}
+                    min={0}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Commentaire</Label>
+                <Textarea
+                  value={editForm.commentaire}
+                  onChange={(e) => setEditForm({ ...editForm, commentaire: e.target.value })}
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingControl(null)}>
+              Annuler
+            </Button>
+            <Button onClick={saveEdit}>
+              Enregistrer
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -489,8 +756,10 @@ export default function ControlHistory() {
   );
 }
 
-// Generate detailed HTML export
-function generateExportHTML(controls: Array<(OnboardControl & { _type: 'onboard' }) | (StationControl & { _type: 'station' })>): string {
+function generateExportHTML(
+  controls: Array<(OnboardControl & { _type: 'onboard' }) | (StationControl & { _type: 'station' })>,
+  groupedByTrain: Record<string, typeof controls>
+): string {
   const formatTarifDetailHTML = (items: TarifItem[], sttCount: number, sttAmount: number): string => {
     const parts: string[] = [];
     
@@ -515,30 +784,72 @@ function generateExportHTML(controls: Array<(OnboardControl & { _type: 'onboard'
     return parts.join('') || '-';
   };
 
-  const rows = controls.map((c) => {
-    const label = c._type === 'onboard' 
-      ? `${c.trainNumber} (${c.origin} → ${c.destination})`
-      : `${c.stationName} - Quai ${c.platform}`;
-    
-    const tarifsBordTotal = c.tarifsBord.reduce((s, t) => s + t.montant, 0);
-    const tarifsBordDetail = c.tarifsBord.length > 0 
-      ? c.tarifsBord.map(t => `${t.description ? t.description + ': ' : ''}${t.montant.toFixed(2)}€`).join(', ')
-      : '-';
-    
+  // Group selected controls by train for detailed report
+  const trainGroups: Record<string, typeof controls> = {};
+  controls.forEach((c) => {
+    const key = c._type === 'onboard' ? c.trainNumber : c.stationName;
+    if (!trainGroups[key]) trainGroups[key] = [];
+    trainGroups[key].push(c);
+  });
+
+  const trainSections = Object.entries(trainGroups).map(([trainKey, trainControls]) => {
+    const rows = trainControls.map((c) => {
+      const tarifsBordTotal = c.tarifsBord.reduce((s, t) => s + t.montant, 0);
+      const tarifsBordDetail = c.tarifsBord.length > 0 
+        ? c.tarifsBord.map(t => `${t.description ? t.description + ': ' : ''}${t.montant.toFixed(2)}€`).join(', ')
+        : '-';
+      
+      return `
+        <tr>
+          <td>${new Date(c.date).toLocaleDateString('fr-FR')} ${c.time}</td>
+          <td class="right">${c.passengers}</td>
+          <td class="right">${c.fraudCount}</td>
+          <td class="right">${c.fraudRate.toFixed(1)}%</td>
+          <td>${tarifsBordDetail}<br><strong>Total: ${tarifsBordTotal.toFixed(2)}€</strong></td>
+          <td>${formatTarifDetailHTML(c.tarifsControle, c.stt50Count, 50)}</td>
+          <td>${formatTarifDetailHTML(c.pvList, c.stt100Count, 100)}</td>
+          <td class="right">${c.riPositif}</td>
+          <td class="right">${c.riNegatif}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const trainPassengers = trainControls.reduce((s, c) => s + c.passengers, 0);
+    const trainFrauds = trainControls.reduce((s, c) => s + c.fraudCount, 0);
+    const trainTarifsBord = trainControls.reduce((s, c) => s + c.tarifsBord.reduce((ss, t) => ss + t.montant, 0), 0);
+    const trainTarifsControle = trainControls.reduce((s, c) => s + c.tarifsControle.reduce((ss, t) => ss + t.montant, 0) + c.stt50Count * 50, 0);
+    const trainPV = trainControls.reduce((s, c) => s + c.pvList.reduce((ss, t) => ss + t.montant, 0) + c.stt100Count * 100, 0);
+
     return `
-      <tr>
-        <td>${c._type === 'onboard' ? '🚂' : '🚉'}</td>
-        <td>${label}</td>
-        <td>${new Date(c.date).toLocaleDateString('fr-FR')} ${c.time}</td>
-        <td class="right">${c.passengers}</td>
-        <td class="right">${c.fraudCount}</td>
-        <td class="right">${c.fraudRate.toFixed(1)}%</td>
-        <td>${tarifsBordDetail}<br><strong>Total: ${tarifsBordTotal.toFixed(2)}€</strong></td>
-        <td>${formatTarifDetailHTML(c.tarifsControle, c.stt50Count, 50)}</td>
-        <td>${formatTarifDetailHTML(c.pvList, c.stt100Count, 100)}</td>
-        <td class="right">${c.riPositif}</td>
-        <td class="right">${c.riNegatif}</td>
-      </tr>
+      <div class="train-section">
+        <h2>${trainControls[0]._type === 'onboard' ? '🚂' : '🚉'} ${trainKey}</h2>
+        <div class="train-summary">
+          <span><strong>${trainControls.length}</strong> contrôle(s)</span>
+          <span><strong>${trainPassengers}</strong> passagers</span>
+          <span><strong>${trainFrauds}</strong> fraudes (${trainPassengers > 0 ? ((trainFrauds / trainPassengers) * 100).toFixed(1) : 0}%)</span>
+          <span>Tarifs bord: <strong>${trainTarifsBord.toFixed(2)}€</strong></span>
+          <span>Tarifs contrôle: <strong>${trainTarifsControle.toFixed(2)}€</strong></span>
+          <span>PV: <strong>${trainPV.toFixed(2)}€</strong></span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Date/Heure</th>
+              <th class="right">Pass.</th>
+              <th class="right">Fraudes</th>
+              <th class="right">Taux</th>
+              <th>Tarifs à bord</th>
+              <th>Tarifs contrôle (détail)</th>
+              <th>PV (détail)</th>
+              <th class="right">RI+</th>
+              <th class="right">RI-</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+      </div>
     `;
   }).join('');
 
@@ -551,7 +862,8 @@ function generateExportHTML(controls: Array<(OnboardControl & { _type: 'onboard'
   <style>
     body { font-family: 'Segoe UI', Arial, sans-serif; margin: 20px; color: #333; font-size: 11px; }
     h1 { color: #0066cc; border-bottom: 3px solid #0066cc; padding-bottom: 10px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    h2 { color: #0066cc; margin-top: 30px; padding: 10px; background: #f0f7ff; border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
     th, td { border: 1px solid #ddd; padding: 6px; text-align: left; vertical-align: top; }
     th { background: #0066cc; color: white; font-weight: 600; }
     tr:nth-child(even) { background: #f8f9fa; }
@@ -561,12 +873,14 @@ function generateExportHTML(controls: Array<(OnboardControl & { _type: 'onboard'
     .stat { text-align: center; padding: 10px; }
     .stat-value { font-size: 20px; font-weight: bold; color: #0066cc; }
     .stat-label { font-size: 11px; color: #666; }
-    @media print { body { margin: 0; font-size: 9px; } th, td { padding: 4px; } }
+    .train-section { margin-bottom: 30px; page-break-inside: avoid; }
+    .train-summary { display: flex; gap: 15px; flex-wrap: wrap; padding: 10px; background: #fff; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px; }
+    @media print { body { margin: 0; font-size: 9px; } th, td { padding: 4px; } .train-section { page-break-inside: avoid; } }
   </style>
 </head>
 <body>
-  <h1>📋 Export Contrôles SNCF</h1>
-  <p>Exporté le ${new Date().toLocaleString('fr-FR')} • ${controls.length} contrôle(s)</p>
+  <h1>📋 Export Contrôles SNCF - Détail par train</h1>
+  <p>Exporté le ${new Date().toLocaleString('fr-FR')} • ${controls.length} contrôle(s) • ${Object.keys(trainGroups).length} train(s)/gare(s)</p>
   
   <div class="summary">
     <div class="stats">
@@ -597,26 +911,7 @@ function generateExportHTML(controls: Array<(OnboardControl & { _type: 'onboard'
     </div>
   </div>
 
-  <table>
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Train/Gare</th>
-        <th>Date/Heure</th>
-        <th class="right">Pass.</th>
-        <th class="right">Fraudes</th>
-        <th class="right">Taux</th>
-        <th>Tarifs à bord</th>
-        <th>Tarifs contrôle (détail)</th>
-        <th>PV (détail)</th>
-        <th class="right">RI+</th>
-        <th class="right">RI-</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${rows}
-    </tbody>
-  </table>
+  ${trainSections}
 </body>
 </html>`;
 }
