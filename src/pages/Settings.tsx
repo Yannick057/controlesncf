@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import { 
-  User, Palette, Smartphone, Database, Bell, Info, 
+  User, Palette, Database, Bell, Info, 
   Moon, Sun, Monitor, Download, Upload, Trash2, 
   ExternalLink, Bug, HelpCircle, Check, ShieldCheck, Users
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme, THEME_OPTIONS, Theme } from '@/contexts/ThemeContext';
 import { useOnboardControls, useStationControls } from '@/hooks/useControls';
-import { usePWA } from '@/hooks/usePWA';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -26,10 +25,11 @@ const THEME_ICONS: Record<Theme, React.ComponentType<{ className?: string }>> = 
   light: Sun,
   dark: Moon,
   auto: Monitor,
-  matrix: () => <span className="text-lg">💚</span>,
-  simpson: () => <span className="text-lg">💛</span>,
   stranger: () => <span className="text-lg">🔴</span>,
   neon: () => <span className="text-lg">💜</span>,
+  cyberpunk: () => <span className="text-lg">🌆</span>,
+  gold: () => <span className="text-lg">✨</span>,
+  aurora: () => <span className="text-lg">🌊</span>,
 };
 
 export default function Settings() {
@@ -38,7 +38,6 @@ export default function Settings() {
   const { controls: onboardControls, clearControls: clearOnboard, setControls: setOnboard } = useOnboardControls();
   const { controls: stationControls, clearControls: clearStation, setControls: setStation } = useStationControls();
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const { isInstalled, isInstallable, install } = usePWA();
   
   // Local role management
   const [userRole, setUserRole] = useState<UserRole>('agent');
@@ -60,20 +59,6 @@ export default function Settings() {
       setPendingUsers(JSON.parse(savedPending));
     }
   }, []);
-
-  const handleInstallApp = async () => {
-    const success = await install();
-    if (success) {
-      toast.success('Application installée avec succès !');
-    } else if (!isInstallable) {
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      if (isIOS) {
-        toast.info('Appuyez sur Partager puis "Sur l\'écran d\'accueil"');
-      } else {
-        toast.info('Utilisez le menu du navigateur pour installer l\'application');
-      }
-    }
-  };
 
   const handleNotificationToggle = async () => {
     if (!notificationsEnabled) {
@@ -298,50 +283,8 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      {/* PWA */}
-      <Card className="animate-slide-up" style={{ animationDelay: '100ms' }}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Smartphone className="h-5 w-5 text-primary" />
-            Application mobile
-          </CardTitle>
-          <CardDescription>Installez l'application pour un accès rapide</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className={cn(
-              'flex h-10 w-10 items-center justify-center rounded-lg',
-              isInstalled ? 'bg-success/20 text-success' : 'bg-warning/20 text-warning'
-            )}>
-              {isInstalled ? <Check className="h-5 w-5" /> : <Smartphone className="h-5 w-5" />}
-            </div>
-            <div className="flex-1">
-              <p className="font-medium">
-                {isInstalled ? 'Application installée' : 'Application non installée'}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {isInstalled 
-                  ? 'Vous utilisez la version installée'
-                  : 'Ajoutez l\'app à votre écran d\'accueil'}
-              </p>
-            </div>
-          </div>
-          
-          {!isInstalled && (
-            <Button onClick={handleInstallApp} className="w-full gap-2">
-              <Download className="h-4 w-4" />
-              Installer l'application
-            </Button>
-          )}
-          
-          <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-            <span><span className="font-medium">Version:</span> 1.0.0</span>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Data Management */}
-      <Card className="animate-slide-up" style={{ animationDelay: '150ms' }}>
+      <Card className="animate-slide-up" style={{ animationDelay: '100ms' }}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Database className="h-5 w-5 text-primary" />
@@ -368,7 +311,7 @@ export default function Settings() {
       </Card>
 
       {/* Notifications */}
-      <Card className="animate-slide-up" style={{ animationDelay: '200ms' }}>
+      <Card className="animate-slide-up" style={{ animationDelay: '150ms' }}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Bell className="h-5 w-5 text-primary" />
@@ -394,7 +337,7 @@ export default function Settings() {
               notificationsEnabled ? 'bg-primary' : 'bg-muted'
             )}>
               <div className={cn(
-                'h-4 w-4 rounded-full bg-white transition-transform',
+                'h-4 w-4 rounded-full bg-background transition-transform',
                 notificationsEnabled ? 'translate-x-5' : 'translate-x-0'
               )} />
             </div>
@@ -403,7 +346,7 @@ export default function Settings() {
       </Card>
 
       {/* About */}
-      <Card className="animate-slide-up" style={{ animationDelay: '250ms' }}>
+      <Card className="animate-slide-up" style={{ animationDelay: '200ms' }}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Info className="h-5 w-5 text-primary" />
@@ -422,7 +365,7 @@ export default function Settings() {
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Dernière mise à jour</span>
-              <span className="font-medium">30/12/2025</span>
+              <span className="font-medium">31/12/2025</span>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
