@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
+export type TarifBordType = 'bord' | 'exceptionnel';
+
 export interface TarifItem {
   id: number;
   type: 'STT' | 'RNV' | 'Titre tiers' | 'D. naissance' | 'Autre';
@@ -10,6 +12,7 @@ export interface TarifBordItem {
   id: number;
   montant: number;
   description?: string;
+  tarifType: TarifBordType;
 }
 
 export interface OnboardControl {
@@ -20,7 +23,7 @@ export interface OnboardControl {
   date: string;
   time: string;
   passengers: number;
-  // Tarif à bord (ne compte pas pour la fraude)
+  // Tarif à bord / exceptionnel (ne compte pas pour la fraude)
   tarifsBord: TarifBordItem[];
   // Tarif contrôle
   tarifsControle: TarifItem[];
@@ -47,7 +50,7 @@ export interface StationControl {
   date: string;
   time: string;
   passengers: number;
-  // Tarif à bord (ne compte pas pour la fraude)
+  // Tarif à bord / exceptionnel (ne compte pas pour la fraude)
   tarifsBord: TarifBordItem[];
   // Tarif contrôle
   tarifsControle: TarifItem[];
@@ -71,7 +74,16 @@ export function useOnboardControls() {
   useEffect(() => {
     const saved = localStorage.getItem('sncf-controls-onboard');
     if (saved) {
-      setControls(JSON.parse(saved));
+      // Migrate old data without tarifType
+      const parsed = JSON.parse(saved);
+      const migrated = parsed.map((c: OnboardControl) => ({
+        ...c,
+        tarifsBord: c.tarifsBord.map((t: TarifBordItem) => ({
+          ...t,
+          tarifType: t.tarifType || 'bord'
+        }))
+      }));
+      setControls(migrated);
     }
   }, []);
 
@@ -133,7 +145,16 @@ export function useStationControls() {
   useEffect(() => {
     const saved = localStorage.getItem('sncf-controls-station');
     if (saved) {
-      setControls(JSON.parse(saved));
+      // Migrate old data without tarifType
+      const parsed = JSON.parse(saved);
+      const migrated = parsed.map((c: StationControl) => ({
+        ...c,
+        tarifsBord: c.tarifsBord.map((t: TarifBordItem) => ({
+          ...t,
+          tarifType: t.tarifType || 'bord'
+        }))
+      }));
+      setControls(migrated);
     }
   }, []);
 

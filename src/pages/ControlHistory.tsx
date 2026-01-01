@@ -1,12 +1,12 @@
 import { useState, useMemo } from 'react';
-import { Train, Building2, Calendar, Filter, Download, Search, Edit, Trash2, ChevronDown, ChevronUp, Mail, X } from 'lucide-react';
+import { Train, Building2, Calendar, Filter, Download, Search, Edit, Trash2, ChevronDown, ChevronUp, Mail, X, Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useOnboardControls, useStationControls, OnboardControl, StationControl, TarifItem, TarifBordItem } from '@/hooks/useControls';
+import { useOnboardControls, useStationControls, OnboardControl, StationControl, TarifItem, TarifBordItem, TarifBordType } from '@/hooks/useControls';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { TarifList } from '@/components/controls/TarifList';
 import { TarifBordList } from '@/components/controls/TarifBordList';
 import { Counter } from '@/components/controls/Counter';
+import { TypeToggle, TarifType } from '@/components/controls/TypeToggle';
 
 type SortBy = 'date' | 'train' | 'fraudRate';
 type SortOrder = 'asc' | 'desc';
@@ -76,6 +77,15 @@ export default function ControlHistory() {
     riNegatif: number;
     commentaire: string;
   } | null>(null);
+  
+  // New tarif form state for edit dialog
+  const [newTarifBordMontant, setNewTarifBordMontant] = useState('');
+  const [newTarifBordDesc, setNewTarifBordDesc] = useState('');
+  const [newTarifBordType, setNewTarifBordType] = useState<TarifBordType>('bord');
+  const [newTarifControleType, setNewTarifControleType] = useState<TarifType>('STT');
+  const [newTarifControleMontant, setNewTarifControleMontant] = useState('');
+  const [newPvType, setNewPvType] = useState<TarifType>('STT');
+  const [newPvMontant, setNewPvMontant] = useState('');
 
   const combinedControls = useMemo(() => {
     const combined: Array<(OnboardControl & { _type: 'onboard' }) | (StationControl & { _type: 'station' })> = [];
@@ -664,60 +674,57 @@ export default function ControlHistory() {
               </div>
 
               <div className="space-y-2">
-                <Label>Tarifs à bord</Label>
-                <TarifBordList
-                  items={editForm.tarifsBord}
-                  onRemove={(id) => setEditForm({
-                    ...editForm,
-                    tarifsBord: editForm.tarifsBord.filter((t) => t.id !== id)
-                  })}
-                  total={editForm.tarifsBord.reduce((sum, t) => sum + t.montant, 0)}
-                />
+                <Label>Tarifs à bord / exceptionnel</Label>
+                <div className="flex gap-2 mb-2">
+                  <button type="button" onClick={() => setNewTarifBordType('bord')} className={cn('rounded-lg px-3 py-1.5 text-xs font-medium', newTarifBordType === 'bord' ? 'bg-accent text-accent-foreground' : 'bg-secondary')}>Bord</button>
+                  <button type="button" onClick={() => setNewTarifBordType('exceptionnel')} className={cn('rounded-lg px-3 py-1.5 text-xs font-medium', newTarifBordType === 'exceptionnel' ? 'bg-warning text-warning-foreground' : 'bg-secondary')}>Exceptionnel</button>
+                </div>
+                <div className="flex gap-2">
+                  <Input placeholder="Description" value={newTarifBordDesc} onChange={(e) => setNewTarifBordDesc(e.target.value)} className="flex-1" />
+                  <Input type="number" placeholder="€" value={newTarifBordMontant} onChange={(e) => setNewTarifBordMontant(e.target.value)} className="w-20" />
+                  <Button type="button" size="sm" onClick={() => {
+                    const m = parseFloat(newTarifBordMontant);
+                    if (m > 0) {
+                      setEditForm({ ...editForm!, tarifsBord: [...editForm!.tarifsBord, { id: Date.now(), montant: m, description: newTarifBordDesc || undefined, tarifType: newTarifBordType }] });
+                      setNewTarifBordMontant(''); setNewTarifBordDesc('');
+                    }
+                  }}><Plus className="h-4 w-4" /></Button>
+                </div>
+                <TarifBordList items={editForm.tarifsBord} onRemove={(id) => setEditForm({ ...editForm, tarifsBord: editForm.tarifsBord.filter((t) => t.id !== id) })} total={editForm.tarifsBord.reduce((sum, t) => sum + t.montant, 0)} />
               </div>
 
               <div className="space-y-2">
                 <Label>Tarifs contrôle</Label>
-                <div className="flex items-center gap-4 mb-2">
-                  <span className="text-sm text-muted-foreground">STT 50€:</span>
-                  <Counter
-                    label="STT 50€"
-                    value={editForm.stt50Count}
-                    onChange={(v) => setEditForm({ ...editForm, stt50Count: v })}
-                    min={0}
-                  />
+                <Counter label="STT 50€" value={editForm.stt50Count} onChange={(v) => setEditForm({ ...editForm, stt50Count: v })} min={0} />
+                <div className="flex gap-2 mt-2">
+                  <TypeToggle value={newTarifControleType} onChange={setNewTarifControleType} />
+                  <Input type="number" placeholder="€" value={newTarifControleMontant} onChange={(e) => setNewTarifControleMontant(e.target.value)} className="w-20" />
+                  <Button type="button" size="sm" onClick={() => {
+                    const m = parseFloat(newTarifControleMontant);
+                    if (m > 0) {
+                      setEditForm({ ...editForm!, tarifsControle: [...editForm!.tarifsControle, { id: Date.now(), type: newTarifControleType, montant: m }] });
+                      setNewTarifControleMontant('');
+                    }
+                  }}><Plus className="h-4 w-4" /></Button>
                 </div>
-                <TarifList
-                  title="Tarifs contrôle"
-                  items={editForm.tarifsControle}
-                  onRemove={(id) => setEditForm({
-                    ...editForm,
-                    tarifsControle: editForm.tarifsControle.filter((t) => t.id !== id)
-                  })}
-                  total={editForm.tarifsControle.reduce((sum, t) => sum + t.montant, 0) + editForm.stt50Count * 50}
-                />
+                <TarifList title="Tarifs contrôle" items={editForm.tarifsControle} onRemove={(id) => setEditForm({ ...editForm, tarifsControle: editForm.tarifsControle.filter((t) => t.id !== id) })} total={editForm.tarifsControle.reduce((sum, t) => sum + t.montant, 0) + editForm.stt50Count * 50} stt50Count={editForm.stt50Count} />
               </div>
 
               <div className="space-y-2">
                 <Label>Procès-verbaux</Label>
-                <div className="flex items-center gap-4 mb-2">
-                  <span className="text-sm text-muted-foreground">STT 100€:</span>
-                  <Counter
-                    label="STT 100€"
-                    value={editForm.stt100Count}
-                    onChange={(v) => setEditForm({ ...editForm, stt100Count: v })}
-                    min={0}
-                  />
+                <Counter label="STT 100€" value={editForm.stt100Count} onChange={(v) => setEditForm({ ...editForm, stt100Count: v })} min={0} variant="destructive" />
+                <div className="flex gap-2 mt-2">
+                  <TypeToggle value={newPvType} onChange={setNewPvType} />
+                  <Input type="number" placeholder="€" value={newPvMontant} onChange={(e) => setNewPvMontant(e.target.value)} className="w-20" />
+                  <Button type="button" size="sm" variant="destructive" onClick={() => {
+                    const m = parseFloat(newPvMontant);
+                    if (m > 0) {
+                      setEditForm({ ...editForm!, pvList: [...editForm!.pvList, { id: Date.now(), type: newPvType, montant: m }] });
+                      setNewPvMontant('');
+                    }
+                  }}><Plus className="h-4 w-4" /></Button>
                 </div>
-                <TarifList
-                  title="Procès-verbaux"
-                  items={editForm.pvList}
-                  onRemove={(id) => setEditForm({
-                    ...editForm,
-                    pvList: editForm.pvList.filter((t) => t.id !== id)
-                  })}
-                  total={editForm.pvList.reduce((sum, t) => sum + t.montant, 0) + editForm.stt100Count * 100}
-                  variant="destructive"
-                />
+                <TarifList title="Procès-verbaux" items={editForm.pvList} onRemove={(id) => setEditForm({ ...editForm, pvList: editForm.pvList.filter((t) => t.id !== id) })} total={editForm.pvList.reduce((sum, t) => sum + t.montant, 0) + editForm.stt100Count * 100} variant="destructive" stt100Count={editForm.stt100Count} />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
