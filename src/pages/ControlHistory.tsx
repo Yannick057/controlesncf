@@ -671,6 +671,7 @@ export default function ControlHistory() {
                     ...editForm,
                     tarifsBord: editForm.tarifsBord.filter((t) => t.id !== id)
                   })}
+                  total={editForm.tarifsBord.reduce((sum, t) => sum + t.montant, 0)}
                 />
               </div>
 
@@ -679,17 +680,20 @@ export default function ControlHistory() {
                 <div className="flex items-center gap-4 mb-2">
                   <span className="text-sm text-muted-foreground">STT 50€:</span>
                   <Counter
+                    label="STT 50€"
                     value={editForm.stt50Count}
                     onChange={(v) => setEditForm({ ...editForm, stt50Count: v })}
                     min={0}
                   />
                 </div>
                 <TarifList
+                  title="Tarifs contrôle"
                   items={editForm.tarifsControle}
                   onRemove={(id) => setEditForm({
                     ...editForm,
                     tarifsControle: editForm.tarifsControle.filter((t) => t.id !== id)
                   })}
+                  total={editForm.tarifsControle.reduce((sum, t) => sum + t.montant, 0) + editForm.stt50Count * 50}
                 />
               </div>
 
@@ -698,17 +702,21 @@ export default function ControlHistory() {
                 <div className="flex items-center gap-4 mb-2">
                   <span className="text-sm text-muted-foreground">STT 100€:</span>
                   <Counter
+                    label="STT 100€"
                     value={editForm.stt100Count}
                     onChange={(v) => setEditForm({ ...editForm, stt100Count: v })}
                     min={0}
                   />
                 </div>
                 <TarifList
+                  title="Procès-verbaux"
                   items={editForm.pvList}
                   onRemove={(id) => setEditForm({
                     ...editForm,
                     pvList: editForm.pvList.filter((t) => t.id !== id)
                   })}
+                  total={editForm.pvList.reduce((sum, t) => sum + t.montant, 0) + editForm.stt100Count * 100}
+                  variant="destructive"
                 />
               </div>
 
@@ -716,17 +724,21 @@ export default function ControlHistory() {
                 <div className="space-y-2">
                   <Label>RI Positifs</Label>
                   <Counter
+                    label="RI Positifs"
                     value={editForm.riPositif}
                     onChange={(v) => setEditForm({ ...editForm, riPositif: v })}
                     min={0}
+                    variant="success"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>RI Négatifs</Label>
                   <Counter
+                    label="RI Négatifs"
                     value={editForm.riNegatif}
                     onChange={(v) => setEditForm({ ...editForm, riNegatif: v })}
                     min={0}
+                    variant="destructive"
                   />
                 </div>
               </div>
