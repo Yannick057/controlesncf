@@ -11,7 +11,7 @@ import { TypeToggle, TarifType } from '@/components/controls/TypeToggle';
 import { TarifList } from '@/components/controls/TarifList';
 import { TarifBordList } from '@/components/controls/TarifBordList';
 import { CitySelect } from '@/components/controls/CitySelect';
-import { useOnboardControls, OnboardControl, TarifItem, TarifBordItem } from '@/hooks/useControls';
+import { useOnboardControls, OnboardControl, TarifItem, TarifBordItem, TarifBordType } from '@/hooks/useControls';
 import { exportToHTML, exportToPDF } from '@/utils/exportControls';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -29,9 +29,10 @@ export default function OnboardControls() {
   const [time, setTime] = useState(now);
   const [passengers, setPassengers] = useState('');
 
-  // Tarif à bord (ne compte pas pour la fraude)
+  // Tarif à bord / exceptionnel (ne compte pas pour la fraude)
   const [tarifBordMontant, setTarifBordMontant] = useState('');
   const [tarifBordDescription, setTarifBordDescription] = useState('');
+  const [tarifBordType, setTarifBordType] = useState<TarifBordType>('bord');
   const [tarifsBord, setTarifsBord] = useState<TarifBordItem[]>([]);
 
   // Tarif contrôle
@@ -66,7 +67,12 @@ export default function OnboardControls() {
       toast.error('Montant invalide');
       return;
     }
-    setTarifsBord([...tarifsBord, { id: Date.now(), montant, description: tarifBordDescription || undefined }]);
+    setTarifsBord([...tarifsBord, { 
+      id: Date.now(), 
+      montant, 
+      description: tarifBordDescription || undefined,
+      tarifType: tarifBordType
+    }]);
     setTarifBordMontant('');
     setTarifBordDescription('');
   };
@@ -307,16 +313,42 @@ export default function OnboardControls() {
               </CardContent>
             </Card>
 
-            {/* Tarif à bord - SEPARATE SECTION */}
+            {/* Tarif à bord / exceptionnel - SEPARATE SECTION */}
             <Card>
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <Ticket className="h-5 w-5 text-accent" />
-                  Tarif à bord
+                  Tarif à bord / exceptionnel
                 </CardTitle>
                 <CardDescription>Ces tarifs ne comptent pas dans le taux de fraude</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTarifBordType('bord')}
+                    className={cn(
+                      'rounded-lg px-4 py-2 text-sm font-medium transition-all',
+                      tarifBordType === 'bord'
+                        ? 'bg-accent text-accent-foreground shadow-md'
+                        : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                    )}
+                  >
+                    Bord
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTarifBordType('exceptionnel')}
+                    className={cn(
+                      'rounded-lg px-4 py-2 text-sm font-medium transition-all',
+                      tarifBordType === 'exceptionnel'
+                        ? 'bg-warning text-warning-foreground shadow-md'
+                        : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                    )}
+                  >
+                    Exceptionnel
+                  </button>
+                </div>
                 <div className="flex gap-2">
                   <Input
                     type="text"
@@ -482,6 +514,7 @@ export default function OnboardControls() {
                   onRemove={removeTarifControle}
                   total={totalTarifsControle}
                   variant="primary"
+                  stt50Count={stt50Count}
                 />
 
                 {/* PV List */}
@@ -491,6 +524,7 @@ export default function OnboardControls() {
                   onRemove={removePv}
                   total={totalPV}
                   variant="destructive"
+                  stt100Count={stt100Count}
                 />
 
                 {/* RI Summary */}
