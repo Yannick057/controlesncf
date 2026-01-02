@@ -1,6 +1,7 @@
 import { Train, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { OfflineIndicator } from '@/components/dashboard/OfflineIndicator';
 
 export function Header() {
   const { user, logout } = useAuth();
@@ -19,10 +20,8 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-4">
+          <OfflineIndicator />
           <div className="hidden items-center gap-2 text-sm text-muted-foreground sm:flex">
-            <span className="rounded-full bg-success/20 px-2 py-0.5 text-xs font-medium text-success">
-              En ligne
-            </span>
             <span>{user?.email}</span>
           </div>
           <Button variant="ghost" size="sm" onClick={logout} className="gap-2">

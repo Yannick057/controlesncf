@@ -1,78 +1,112 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
-interface User {
+type AppRole = 'admin' | 'manager' | 'agent';
+
+interface AuthUser {
+  id: string;
   email: string;
   name: string;
+  role: AppRole;
   lastLogin: string;
 }
 
 interface AuthContextType {
-  user: User | null;
-  login: (email: string, password: string) => boolean;
-  register: (email: string, password: string, name: string) => { success: boolean; error?: string };
-  logout: () => void;
+  user: AuthUser | null;
+  session: Session | null;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  register: (email: string, password: string, name: string) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Stored users in localStorage
-const STORAGE_KEY = 'sncf_registered_users';
-
-const DEFAULT_USERS = [
-  { email: 'demo@sncf.fr', password: 'demo123', name: 'Agent Demo' },
-  { email: 'agent@sncf.fr', password: 'sncf2025', name: 'Agent SNCF' },
-];
-
-function getStoredUsers(): { email: string; password: string; name: string }[] {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored) {
-    return JSON.parse(stored);
-  }
-  return DEFAULT_USERS;
-}
-
-function saveUsers(users: { email: string; password: string; name: string }[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('sncf_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-  }, []);
-
-  const login = (email: string, password: string): boolean => {
-    const users = getStoredUsers();
-    const validUser = users.find(
-      (cred) => cred.email === email && cred.password === password
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        
+        if (session?.user) {
+          // Defer role fetching with setTimeout to avoid deadlock
+          setTimeout(() => {
+            fetchUserRole(session.user.id, session.user.email || '', session.user.user_metadata?.full_name || '');
+          }, 0);
+        } else {
+          setUser(null);
+        }
+      }
     );
 
-    if (validUser) {
-      const userData: User = {
-        email: validUser.email,
-        name: validUser.name,
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        fetchUserRole(session.user.id, session.user.email || '', session.user.user_metadata?.full_name || '');
+      }
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const fetchUserRole = async (userId: string, email: string, name: string) => {
+    try {
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .single();
+
+      setUser({
+        id: userId,
+        email,
+        name: name || email.split('@')[0],
+        role: (roleData?.role as AppRole) || 'agent',
         lastLogin: new Date().toISOString(),
-      };
-      setUser(userData);
-      localStorage.setItem('sncf_user', JSON.stringify(userData));
-      return true;
+      });
+    } catch (error) {
+      setUser({
+        id: userId,
+        email,
+        name: name || email.split('@')[0],
+        role: 'agent',
+        lastLogin: new Date().toISOString(),
+      });
     }
-    return false;
+    setIsLoading(false);
   };
 
-  const register = (email: string, password: string, name: string): { success: boolean; error?: string } => {
-    const users = getStoredUsers();
-    
-    // Check if email already exists
-    if (users.some((u) => u.email.toLowerCase() === email.toLowerCase())) {
-      return { success: false, error: 'Cet email est déjà utilisé' };
-    }
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
+      if (error) {
+        if (error.message.includes('Invalid login credentials')) {
+          return { success: false, error: 'Email ou mot de passe incorrect' };
+        }
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Erreur de connexion' };
+    }
+  };
+
+  const register = async (email: string, password: string, name: string): Promise<{ success: boolean; error?: string }> => {
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
@@ -84,29 +118,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: false, error: 'Le mot de passe doit contenir au moins 6 caractères' };
     }
 
-    // Add new user
-    const newUsers = [...users, { email, password, name }];
-    saveUsers(newUsers);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            full_name: name,
+          },
+        },
+      });
 
-    // Auto login
-    const userData: User = {
-      email,
-      name,
-      lastLogin: new Date().toISOString(),
-    };
-    setUser(userData);
-    localStorage.setItem('sncf_user', JSON.stringify(userData));
+      if (error) {
+        if (error.message.includes('already registered')) {
+          return { success: false, error: 'Cet email est déjà utilisé' };
+        }
+        return { success: false, error: error.message };
+      }
 
-    return { success: true };
+      toast.success('Compte créé avec succès !');
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Erreur lors de l\'inscription' };
+    }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem('sncf_user');
+    setSession(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider 
+      value={{ 
+        user, 
+        session,
+        login, 
+        register, 
+        logout, 
+        isAuthenticated: !!session,
+        isLoading,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

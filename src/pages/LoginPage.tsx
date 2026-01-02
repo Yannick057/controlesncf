@@ -23,14 +23,12 @@ export default function LoginPage() {
     setError('');
     setIsLoading(true);
 
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    const success = login(email, password);
+    const result = await login(email, password);
     
-    if (success) {
+    if (result.success) {
       navigate('/');
     } else {
-      setError('Identifiants incorrects. Veuillez réessayer.');
+      setError(result.error || 'Identifiants incorrects');
     }
     
     setIsLoading(false);
@@ -41,9 +39,7 @@ export default function LoginPage() {
     setError('');
     setIsLoading(true);
 
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    const result = register(email, password, name);
+    const result = await register(email, password, name);
     
     if (result.success) {
       navigate('/');
@@ -52,13 +48,6 @@ export default function LoginPage() {
     }
     
     setIsLoading(false);
-  };
-
-  const fillDemoCredentials = (demoEmail: string, demoPassword: string) => {
-    setEmail(demoEmail);
-    setPassword(demoPassword);
-    setError('');
-    setActiveTab('login');
   };
 
   return (
@@ -131,28 +120,6 @@ export default function LoginPage() {
                   {isLoading ? 'Connexion en cours...' : 'Se connecter'}
                 </Button>
               </form>
-
-              <div className="mt-6 space-y-3">
-                <p className="text-center text-sm text-muted-foreground">Comptes de test :</p>
-                <div className="grid gap-2 text-sm">
-                  <button
-                    type="button"
-                    onClick={() => fillDemoCredentials('demo@sncf.fr', 'demo123')}
-                    className="rounded-lg border border-border bg-secondary/50 p-3 text-left transition-all hover:bg-secondary hover:border-primary/50"
-                  >
-                    <span className="font-medium">demo@sncf.fr</span>
-                    <span className="text-muted-foreground"> / demo123</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => fillDemoCredentials('agent@sncf.fr', 'sncf2025')}
-                    className="rounded-lg border border-border bg-secondary/50 p-3 text-left transition-all hover:bg-secondary hover:border-primary/50"
-                  >
-                    <span className="font-medium">agent@sncf.fr</span>
-                    <span className="text-muted-foreground"> / sncf2025</span>
-                  </button>
-                </div>
-              </div>
             </TabsContent>
 
             <TabsContent value="register">
@@ -218,7 +185,7 @@ export default function LoginPage() {
                 </Button>
 
                 <p className="text-xs text-center text-muted-foreground">
-                  En production, les comptes devront être validés par un Manager ou Administrateur.
+                  Les comptes sont créés avec le rôle Agent par défaut.
                 </p>
               </form>
             </TabsContent>
