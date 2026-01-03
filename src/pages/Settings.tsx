@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { 
   User, Palette, Database, Bell, Info, 
   Moon, Sun, Monitor, Download, Upload, Trash2, 
-  ExternalLink, Bug, HelpCircle, Check, ShieldCheck, Users
+  ExternalLink, Bug, HelpCircle, Check, ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme, THEME_OPTIONS, Theme } from '@/contexts/ThemeContext';
@@ -33,31 +33,20 @@ const THEME_ICONS: Record<Theme, React.ComponentType<{ className?: string }>> = 
 };
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user, refreshUserRole } = useAuth();
   const { theme, setTheme } = useTheme();
   const { controls: onboardControls, clearControls: clearOnboard, setControls: setOnboard } = useOnboardControls();
   const { controls: stationControls, clearControls: clearStation, setControls: setStation } = useStationControls();
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  
-  // Local role management
-  const [userRole, setUserRole] = useState<UserRole>('agent');
-  const [pendingUsers, setPendingUsers] = useState<{ email: string; name: string; requestedAt: string }[]>([]);
+
+  // Refresh user role on mount
+  useEffect(() => {
+    refreshUserRole();
+  }, []);
 
   useEffect(() => {
     const saved = localStorage.getItem('notifications_enabled');
     setNotificationsEnabled(saved === 'true');
-    
-    // Load role from localStorage
-    const savedRole = localStorage.getItem('sncf_user_role') as UserRole;
-    if (savedRole && ['agent', 'manager', 'admin'].includes(savedRole)) {
-      setUserRole(savedRole);
-    }
-    
-    // Load pending users
-    const savedPending = localStorage.getItem('sncf_pending_users');
-    if (savedPending) {
-      setPendingUsers(JSON.parse(savedPending));
-    }
   }, []);
 
   const handleNotificationToggle = async () => {
@@ -77,11 +66,7 @@ export default function Settings() {
     }
   };
 
-  const handleRoleChange = (role: UserRole) => {
-    setUserRole(role);
-    localStorage.setItem('sncf_user_role', role);
-    toast.success(`Rôle changé en ${ROLE_LABELS[role]}`);
-  };
+  const userRole = user?.role || 'agent';
 
   const handleExport = () => {
     const data = {
@@ -139,7 +124,7 @@ export default function Settings() {
     }
   };
 
-  const canManageRoles = userRole === 'manager' || userRole === 'admin';
+  
 
   return (
     <div className="space-y-6 pb-8">
@@ -185,56 +170,6 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      {/* Role Management - Only visible for managers/admins */}
-      {canManageRoles && (
-        <Card className="animate-slide-up" style={{ animationDelay: '25ms' }}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              Gestion des rôles
-            </CardTitle>
-            <CardDescription>
-              Gérez les rôles des utilisateurs (Manager/Admin uniquement)
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm text-muted-foreground">Votre rôle actuel</label>
-              <Select value={userRole} onValueChange={(v) => handleRoleChange(v as UserRole)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="agent">Agent de contrôle</SelectItem>
-                  <SelectItem value="manager">Manager</SelectItem>
-                  <SelectItem value="admin">Administrateur</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Note: En production, les rôles seraient gérés via Lovable Cloud
-              </p>
-            </div>
-            
-            {pendingUsers.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium">Inscriptions en attente</h4>
-                {pendingUsers.map((pu, i) => (
-                  <div key={i} className="flex items-center justify-between rounded-lg border p-3">
-                    <div>
-                      <p className="font-medium">{pu.name}</p>
-                      <p className="text-sm text-muted-foreground">{pu.email}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline">Refuser</Button>
-                      <Button size="sm">Valider</Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
       {/* Theme */}
       <Card className="animate-slide-up" style={{ animationDelay: '50ms' }}>
