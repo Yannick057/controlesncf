@@ -19,6 +19,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (email: string, password: string, name: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
+  refreshUserRole: () => Promise<void>;
   isAuthenticated: boolean;
   isLoading: boolean;
 }
@@ -84,6 +85,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     }
     setIsLoading(false);
+  };
+
+  const refreshUserRole = async () => {
+    if (session?.user) {
+      await fetchUserRole(
+        session.user.id,
+        session.user.email || '',
+        session.user.user_metadata?.full_name || user?.name || ''
+      );
+    }
   };
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
@@ -157,7 +168,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         login, 
         register, 
-        logout, 
+        logout,
+        refreshUserRole,
         isAuthenticated: !!session,
         isLoading,
       }}
