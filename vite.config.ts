@@ -4,8 +4,8 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
-  base: '/controlesncf/',
 export default defineConfig(({ mode }) => ({
+  base: '/controlesncf/',
   server: {
     host: "::",
     port: 8080,
