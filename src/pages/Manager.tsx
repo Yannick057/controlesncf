@@ -11,8 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { 
-  Shield, Users, RefreshCw, Crown, UserCog, User as UserIcon, 
-  Download, Search, Filter, History, Key, X
+  UserCog, Users, RefreshCw, User as UserIcon, 
+  Search, Filter, History, Key, X
 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 
@@ -39,26 +39,25 @@ interface RoleHistoryEntry {
   changer_name?: string;
 }
 
-const ROLE_CONFIG: Record<AppRole, { label: string; icon: React.ComponentType<{ className?: string }>; variant: 'default' | 'secondary' | 'outline' }> = {
-  admin: { label: 'Administrateur', icon: Crown, variant: 'default' },
+const ROLE_CONFIG: Record<'manager' | 'agent', { label: string; icon: React.ComponentType<{ className?: string }>; variant: 'default' | 'secondary' | 'outline' }> = {
   manager: { label: 'Manager', icon: UserCog, variant: 'secondary' },
   agent: { label: 'Agent', icon: UserIcon, variant: 'outline' },
 };
 
-export default function Admin() {
+export default function Manager() {
   const { user } = useAuth();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [roleHistory, setRoleHistory] = useState<RoleHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState<AppRole | 'all'>('all');
+  const [roleFilter, setRoleFilter] = useState<'manager' | 'agent' | 'all'>('all');
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
   const [newPassword, setNewPassword] = useState('');
 
   useEffect(() => {
-    if (user?.role === 'admin') {
+    if (user?.role === 'manager') {
       fetchUsers();
       fetchRoleHistory();
     }
@@ -79,16 +78,19 @@ export default function Admin() {
 
       if (rolesError) throw rolesError;
 
-      const usersWithRoles: UserWithRole[] = (profiles || []).map((profile) => {
-        const userRole = roles?.find((r) => r.user_id === profile.id);
-        return {
-          id: profile.id,
-          email: profile.email || '',
-          full_name: profile.full_name,
-          role: (userRole?.role as AppRole) || 'agent',
-          created_at: profile.created_at,
-        };
-      });
+      // Filter out admins - managers can only see managers and agents
+      const usersWithRoles: UserWithRole[] = (profiles || [])
+        .map((profile) => {
+          const userRole = roles?.find((r) => r.user_id === profile.id);
+          return {
+            id: profile.id,
+            email: profile.email || '',
+            full_name: profile.full_name,
+            role: (userRole?.role as AppRole) || 'agent',
+            created_at: profile.created_at,
+          };
+        })
+        .filter(u => u.role !== 'admin');
 
       setUsers(usersWithRoles);
     } catch (error) {
@@ -109,7 +111,6 @@ export default function Admin() {
 
       if (error) throw error;
 
-      // Fetch profiles for user names
       const { data: profiles } = await supabase.from('profiles').select('id, email, full_name');
       const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
 
@@ -127,13 +128,18 @@ export default function Admin() {
     }
   };
 
-  const updateUserRole = async (userId: string, newRole: AppRole) => {
+  const updateUserRole = async (userId: string, newRole: 'manager' | 'agent') => {
     if (userId === user?.id) {
       toast.error('Vous ne pouvez pas modifier votre propre rôle');
       return;
     }
 
     const targetUser = users.find(u => u.id === userId);
+    if (targetUser?.role === 'admin') {
+      toast.error('Vous ne pouvez pas modifier le rôle d\'un administrateur');
+      return;
+    }
+
     const oldRole = targetUser?.role;
 
     setUpdating(userId);
@@ -159,7 +165,7 @@ export default function Admin() {
         if (error) throw error;
       }
 
-      // Log role change in history
+      // Log role change
       await supabase.from('role_history').insert({
         user_id: userId,
         changed_by: user?.id,
@@ -184,13 +190,17 @@ export default function Admin() {
   const handlePasswordChange = async () => {
     if (!selectedUser || !newPassword) return;
 
+    if (selectedUser.role === 'admin') {
+      toast.error('Vous ne pouvez pas changer le mot de passe d\'un administrateur');
+      return;
+    }
+
     if (newPassword.length < 6) {
       toast.error('Le mot de passe doit contenir au moins 6 caractères');
       return;
     }
 
     try {
-      // Note: This requires admin privileges via edge function
       toast.info('Fonctionnalité de changement de mot de passe en cours d\'implémentation');
       setPasswordDialogOpen(false);
       setNewPassword('');
@@ -200,30 +210,8 @@ export default function Admin() {
     }
   };
 
-  const exportUsersCSV = () => {
-    const headers = ['Nom', 'Email', 'Rôle', 'Date d\'inscription'];
-    const rows = filteredUsers.map(u => [
-      u.full_name || 'Sans nom',
-      u.email,
-      ROLE_CONFIG[u.role].label,
-      new Date(u.created_at).toLocaleDateString('fr-FR'),
-    ]);
-
-    const csvContent = [headers, ...rows]
-      .map(row => row.map(cell => `"${cell}"`).join(','))
-      .join('\n');
-
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `utilisateurs-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('Export CSV téléchargé');
-  };
-
-  if (user && user.role !== 'admin') {
+  // Redirect non-managers
+  if (user && user.role !== 'manager') {
     return <Navigate to="/" replace />;
   }
 
@@ -236,7 +224,6 @@ export default function Admin() {
   });
 
   const roleStats = {
-    admin: users.filter((u) => u.role === 'admin').length,
     manager: users.filter((u) => u.role === 'manager').length,
     agent: users.filter((u) => u.role === 'agent').length,
   };
@@ -246,26 +233,20 @@ export default function Admin() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <Shield className="h-6 w-6 text-primary" />
-            Administration
+            <UserCog className="h-6 w-6 text-primary" />
+            Gestion d'équipe
           </h1>
-          <p className="text-muted-foreground">Gérez les utilisateurs et leurs rôles</p>
+          <p className="text-muted-foreground">Gérez les agents et managers de votre équipe</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={exportUsersCSV}>
-            <Download className="mr-2 h-4 w-4" />
-            Export CSV
-          </Button>
-          <Button variant="outline" onClick={() => { fetchUsers(); fetchRoleHistory(); }} disabled={loading}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Actualiser
-          </Button>
-        </div>
+        <Button variant="outline" onClick={() => { fetchUsers(); fetchRoleHistory(); }} disabled={loading}>
+          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          Actualiser
+        </Button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        {(Object.entries(ROLE_CONFIG) as [AppRole, typeof ROLE_CONFIG[AppRole]][]).map(([role, config]) => {
+      <div className="grid gap-4 md:grid-cols-2">
+        {(Object.entries(ROLE_CONFIG) as ['manager' | 'agent', typeof ROLE_CONFIG['manager']][]).map(([role, config]) => {
           const Icon = config.icon;
           return (
             <Card key={role} className="animate-slide-up">
@@ -287,7 +268,7 @@ export default function Admin() {
         <TabsList>
           <TabsTrigger value="users" className="gap-2">
             <Users className="h-4 w-4" />
-            Utilisateurs
+            Membres de l'équipe
           </TabsTrigger>
           <TabsTrigger value="history" className="gap-2">
             <History className="h-4 w-4" />
@@ -300,10 +281,10 @@ export default function Admin() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5 text-primary" />
-                Utilisateurs ({filteredUsers.length})
+                Membres ({filteredUsers.length})
               </CardTitle>
               <CardDescription>
-                Modifiez les rôles des utilisateurs pour contrôler leurs permissions
+                Modifiez les rôles des membres de votre équipe (sauf administrateurs)
               </CardDescription>
               
               {/* Filters */}
@@ -317,14 +298,13 @@ export default function Admin() {
                     className="pl-10"
                   />
                 </div>
-                <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as AppRole | 'all')}>
+                <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as 'manager' | 'agent' | 'all')}>
                   <SelectTrigger className="w-[180px]">
                     <Filter className="mr-2 h-4 w-4" />
                     <SelectValue placeholder="Filtrer par rôle" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tous les rôles</SelectItem>
-                    <SelectItem value="admin">Administrateurs</SelectItem>
                     <SelectItem value="manager">Managers</SelectItem>
                     <SelectItem value="agent">Agents</SelectItem>
                   </SelectContent>
@@ -348,14 +328,14 @@ export default function Admin() {
               ) : filteredUsers.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                   <Users className="h-12 w-12 mb-4" />
-                  <p>Aucun utilisateur trouvé</p>
+                  <p>Aucun membre trouvé</p>
                 </div>
               ) : (
                 <div className="rounded-md border">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Utilisateur</TableHead>
+                        <TableHead>Membre</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>Rôle actuel</TableHead>
                         <TableHead>Inscription</TableHead>
@@ -364,7 +344,8 @@ export default function Admin() {
                     </TableHeader>
                     <TableBody>
                       {filteredUsers.map((u) => {
-                        const RoleIcon = ROLE_CONFIG[u.role].icon;
+                        const config = ROLE_CONFIG[u.role as 'manager' | 'agent'];
+                        const RoleIcon = config?.icon || UserIcon;
                         const isCurrentUser = u.id === user?.id;
                         return (
                           <TableRow key={u.id}>
@@ -378,9 +359,9 @@ export default function Admin() {
                             </TableCell>
                             <TableCell className="text-muted-foreground">{u.email}</TableCell>
                             <TableCell>
-                              <Badge variant={ROLE_CONFIG[u.role].variant} className="gap-1">
+                              <Badge variant={config?.variant || 'outline'} className="gap-1">
                                 <RoleIcon className="h-3 w-3" />
-                                {ROLE_CONFIG[u.role].label}
+                                {config?.label || u.role}
                               </Badge>
                             </TableCell>
                             <TableCell className="text-muted-foreground">
@@ -390,19 +371,13 @@ export default function Admin() {
                               <div className="flex items-center justify-end gap-2">
                                 <Select
                                   value={u.role}
-                                  onValueChange={(value: AppRole) => updateUserRole(u.id, value)}
+                                  onValueChange={(value: 'manager' | 'agent') => updateUserRole(u.id, value)}
                                   disabled={isCurrentUser || updating === u.id}
                                 >
-                                  <SelectTrigger className="w-[140px]">
+                                  <SelectTrigger className="w-[130px]">
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="admin">
-                                      <div className="flex items-center gap-2">
-                                        <Crown className="h-4 w-4" />
-                                        Administrateur
-                                      </div>
-                                    </SelectItem>
                                     <SelectItem value="manager">
                                       <div className="flex items-center gap-2">
                                         <UserCog className="h-4 w-4" />
@@ -480,7 +455,7 @@ export default function Admin() {
                 Historique des modifications de rôles
               </CardTitle>
               <CardDescription>
-                Suivi de toutes les modifications de rôles effectuées
+                Suivi des modifications de rôles (hors administrateurs)
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -502,39 +477,47 @@ export default function Admin() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {roleHistory.map((entry) => (
-                        <TableRow key={entry.id}>
-                          <TableCell className="text-muted-foreground">
-                            {new Date(entry.created_at).toLocaleString('fr-FR')}
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">{entry.user_name || 'Sans nom'}</p>
-                              <p className="text-xs text-muted-foreground">{entry.user_email}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {entry.old_role ? (
-                              <Badge variant={ROLE_CONFIG[entry.old_role].variant}>
-                                {ROLE_CONFIG[entry.old_role].label}
-                              </Badge>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={ROLE_CONFIG[entry.new_role].variant}>
-                              {ROLE_CONFIG[entry.new_role].label}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">{entry.changer_name || 'Sans nom'}</p>
-                              <p className="text-xs text-muted-foreground">{entry.changer_email}</p>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {roleHistory.map((entry) => {
+                        const oldConfig = entry.old_role && entry.old_role !== 'admin' ? ROLE_CONFIG[entry.old_role as 'manager' | 'agent'] : null;
+                        const newConfig = entry.new_role !== 'admin' ? ROLE_CONFIG[entry.new_role as 'manager' | 'agent'] : null;
+                        return (
+                          <TableRow key={entry.id}>
+                            <TableCell className="text-muted-foreground">
+                              {new Date(entry.created_at).toLocaleString('fr-FR')}
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{entry.user_name || 'Sans nom'}</p>
+                                <p className="text-xs text-muted-foreground">{entry.user_email}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {oldConfig ? (
+                                <Badge variant={oldConfig.variant}>
+                                  {oldConfig.label}
+                                </Badge>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {newConfig ? (
+                                <Badge variant={newConfig.variant}>
+                                  {newConfig.label}
+                                </Badge>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{entry.changer_name || 'Sans nom'}</p>
+                                <p className="text-xs text-muted-foreground">{entry.changer_email}</p>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>

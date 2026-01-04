@@ -13,6 +13,7 @@ import StationControls from "./pages/StationControls";
 import ControlHistory from "./pages/ControlHistory";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
+import Manager from "./pages/Manager";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,11 +31,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   const { isAuthenticated } = useAuth();
   
+  // Get default page from localStorage
+  const defaultPage = localStorage.getItem('user_default_page') || '/';
+  
   return (
     <Routes>
       <Route 
         path="/login" 
-        element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />} 
+        element={isAuthenticated ? <Navigate to={defaultPage} replace /> : <LoginPage />} 
       />
       <Route 
         path="/" 
@@ -81,6 +85,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Admin />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/manager" 
+        element={
+          <ProtectedRoute>
+            <Manager />
           </ProtectedRoute>
         } 
       />
