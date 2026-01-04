@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { 
   User, Palette, Database, Bell, Info, 
   Moon, Sun, Monitor, Download, Upload, Trash2, 
-  ExternalLink, Bug, HelpCircle, Check, ShieldCheck
+  ExternalLink, Bug, HelpCircle, Check, ShieldCheck,
+  Navigation as NavigationIcon, GripVertical
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme, THEME_OPTIONS, Theme } from '@/contexts/ThemeContext';
 import { useOnboardControls, useStationControls } from '@/hooks/useControls';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -32,22 +34,112 @@ const THEME_ICONS: Record<Theme, React.ComponentType<{ className?: string }>> = 
   aurora: () => <span className="text-lg">🌊</span>,
 };
 
+const PAGE_OPTIONS = [
+  { value: '/', label: 'Dashboard' },
+  { value: '/onboard', label: 'À Bord' },
+  { value: '/station', label: 'En Gare' },
+  { value: '/history', label: 'Historique' },
+  { value: '/settings', label: 'Paramètres' },
+];
+
+const PAGE_ORDER_OPTIONS = [
+  { id: 'dashboard', label: 'Dashboard', path: '/' },
+  { id: 'onboard', label: 'À Bord', path: '/onboard' },
+  { id: 'station', label: 'En Gare', path: '/station' },
+  { id: 'history', label: 'Historique', path: '/history' },
+  { id: 'settings', label: 'Paramètres', path: '/settings' },
+];
+
 export default function Settings() {
   const { user, refreshUserRole } = useAuth();
   const { theme, setTheme } = useTheme();
   const { controls: onboardControls, clearControls: clearOnboard, setControls: setOnboard } = useOnboardControls();
   const { controls: stationControls, clearControls: clearStation, setControls: setStation } = useStationControls();
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [defaultPage, setDefaultPage] = useState('/');
+  const [pageOrder, setPageOrder] = useState<string[]>(['dashboard', 'onboard', 'station', 'history', 'settings']);
+  const [savingPreferences, setSavingPreferences] = useState(false);
 
   // Refresh user role on mount
   useEffect(() => {
     refreshUserRole();
+    loadUserPreferences();
   }, []);
 
   useEffect(() => {
     const saved = localStorage.getItem('notifications_enabled');
     setNotificationsEnabled(saved === 'true');
   }, []);
+
+  const loadUserPreferences = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data } = await supabase
+        .from('user_preferences')
+        .select('default_page, page_order')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (data) {
+        setDefaultPage(data.default_page);
+        if (data.page_order && Array.isArray(data.page_order)) {
+          setPageOrder(data.page_order as string[]);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading preferences:', error);
+    }
+  };
+
+  const saveUserPreferences = async () => {
+    if (!user?.id) return;
+    
+    setSavingPreferences(true);
+    try {
+      const { data: existing } = await supabase
+        .from('user_preferences')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase
+          .from('user_preferences')
+          .update({ default_page: defaultPage, page_order: pageOrder })
+          .eq('user_id', user.id);
+      } else {
+        await supabase
+          .from('user_preferences')
+          .insert({ user_id: user.id, default_page: defaultPage, page_order: pageOrder });
+      }
+
+      // Save to localStorage for quick access
+      localStorage.setItem('user_default_page', defaultPage);
+      localStorage.setItem('user_page_order', JSON.stringify(pageOrder));
+
+      toast.success('Préférences de navigation enregistrées');
+    } catch (error) {
+      console.error('Error saving preferences:', error);
+      toast.error('Erreur lors de la sauvegarde des préférences');
+    } finally {
+      setSavingPreferences(false);
+    }
+  };
+
+  const movePageUp = (index: number) => {
+    if (index === 0) return;
+    const newOrder = [...pageOrder];
+    [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+    setPageOrder(newOrder);
+  };
+
+  const movePageDown = (index: number) => {
+    if (index === pageOrder.length - 1) return;
+    const newOrder = [...pageOrder];
+    [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+    setPageOrder(newOrder);
+  };
 
   const handleNotificationToggle = async () => {
     if (!notificationsEnabled) {
@@ -124,8 +216,6 @@ export default function Settings() {
     }
   };
 
-  
-
   return (
     <div className="space-y-6 pb-8">
       <div>
@@ -170,6 +260,76 @@ export default function Settings() {
         </CardContent>
       </Card>
 
+      {/* Navigation Preferences */}
+      <Card className="animate-slide-up" style={{ animationDelay: '25ms' }}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <NavigationIcon className="h-5 w-5 text-primary" />
+            Préférences de navigation
+          </CardTitle>
+          <CardDescription>
+            Choisissez votre page par défaut et l'ordre des pages
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Page par défaut</label>
+            <Select value={defaultPage} onValueChange={setDefaultPage}>
+              <SelectTrigger className="w-full sm:w-[250px]">
+                <SelectValue placeholder="Choisir une page" />
+              </SelectTrigger>
+              <SelectContent>
+                {PAGE_OPTIONS.map((page) => (
+                  <SelectItem key={page.value} value={page.value}>
+                    {page.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Ordre des pages</label>
+            <div className="space-y-2">
+              {pageOrder.map((pageId, index) => {
+                const page = PAGE_ORDER_OPTIONS.find(p => p.id === pageId);
+                if (!page) return null;
+                return (
+                  <div 
+                    key={pageId}
+                    className="flex items-center gap-2 rounded-lg border border-border bg-card p-3"
+                  >
+                    <GripVertical className="h-4 w-4 text-muted-foreground" />
+                    <span className="flex-1 font-medium">{page.label}</span>
+                    <div className="flex gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => movePageUp(index)}
+                        disabled={index === 0}
+                      >
+                        ↑
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => movePageDown(index)}
+                        disabled={index === pageOrder.length - 1}
+                      >
+                        ↓
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <Button onClick={saveUserPreferences} disabled={savingPreferences}>
+            {savingPreferences ? 'Enregistrement...' : 'Enregistrer les préférences'}
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Theme */}
       <Card className="animate-slide-up" style={{ animationDelay: '50ms' }}>

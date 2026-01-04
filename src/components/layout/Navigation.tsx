@@ -1,21 +1,54 @@
-import { LayoutDashboard, Train, Building2, Settings, History, Shield } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { LayoutDashboard, Train, Building2, Settings, History, Shield, UserCog } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 
-const baseNavItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/onboard', icon: Train, label: 'À Bord' },
-  { to: '/station', icon: Building2, label: 'En Gare' },
-  { to: '/history', icon: History, label: 'Historique' },
-  { to: '/settings', icon: Settings, label: 'Paramètres' },
+interface NavItem {
+  id: string;
+  to: string;
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+}
+
+const ALL_NAV_ITEMS: NavItem[] = [
+  { id: 'dashboard', to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { id: 'onboard', to: '/onboard', icon: Train, label: 'À Bord' },
+  { id: 'station', to: '/station', icon: Building2, label: 'En Gare' },
+  { id: 'history', to: '/history', icon: History, label: 'Historique' },
+  { id: 'settings', to: '/settings', icon: Settings, label: 'Paramètres' },
 ];
 
-const adminNavItem = { to: '/admin', icon: Shield, label: 'Admin' };
+const adminNavItem: NavItem = { id: 'admin', to: '/admin', icon: Shield, label: 'Admin' };
+const managerNavItem: NavItem = { id: 'manager', to: '/manager', icon: UserCog, label: 'Équipe' };
 
 export function Navigation() {
   const { user } = useAuth();
-  const navItems = user?.role === 'admin' ? [...baseNavItems, adminNavItem] : baseNavItems;
+  const [pageOrder, setPageOrder] = useState<string[]>(['dashboard', 'onboard', 'station', 'history', 'settings']);
+
+  useEffect(() => {
+    const savedOrder = localStorage.getItem('user_page_order');
+    if (savedOrder) {
+      try {
+        setPageOrder(JSON.parse(savedOrder));
+      } catch {
+        // Keep default order
+      }
+    }
+  }, []);
+
+  // Reorder nav items based on user preference
+  const orderedNavItems = pageOrder
+    .map(id => ALL_NAV_ITEMS.find(item => item.id === id))
+    .filter((item): item is NavItem => item !== undefined);
+
+  // Add role-specific items
+  let navItems = [...orderedNavItems];
+  if (user?.role === 'admin') {
+    navItems.push(adminNavItem);
+  } else if (user?.role === 'manager') {
+    navItems.push(managerNavItem);
+  }
 
   return (
     <nav className="border-b border-border bg-card/50">
@@ -46,7 +79,31 @@ export function Navigation() {
 
 export function MobileNavigation() {
   const { user } = useAuth();
-  const navItems = user?.role === 'admin' ? [...baseNavItems, adminNavItem] : baseNavItems;
+  const [pageOrder, setPageOrder] = useState<string[]>(['dashboard', 'onboard', 'station', 'history', 'settings']);
+
+  useEffect(() => {
+    const savedOrder = localStorage.getItem('user_page_order');
+    if (savedOrder) {
+      try {
+        setPageOrder(JSON.parse(savedOrder));
+      } catch {
+        // Keep default order
+      }
+    }
+  }, []);
+
+  // Reorder nav items based on user preference
+  const orderedNavItems = pageOrder
+    .map(id => ALL_NAV_ITEMS.find(item => item.id === id))
+    .filter((item): item is NavItem => item !== undefined);
+
+  // Add role-specific items
+  let navItems = [...orderedNavItems];
+  if (user?.role === 'admin') {
+    navItems.push(adminNavItem);
+  } else if (user?.role === 'manager') {
+    navItems.push(managerNavItem);
+  }
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 md:hidden">
