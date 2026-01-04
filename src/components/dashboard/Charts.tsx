@@ -161,7 +161,7 @@ export function Charts({ onboardControls, stationControls }: ChartsProps) {
   }));
 
   const exportTrainStatsPDF = () => {
-    const html = generateTrainStatsHTML(trainStats, monthlyStats, weeklyFraudData);
+    const html = generateTrainStatsHTML(trainStats, monthlyStats, weeklyFraudData, barData, pieData);
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.write(html);
@@ -401,7 +401,9 @@ function getWeekNumber(date: Date): number {
 function generateTrainStatsHTML(
   trainStats: { trainNumber: string; controls: number; passengers: number; frauds: number; fraudRate: number; tarifsControle: number; tarifsBord: number; pv: number }[],
   monthlyStats: { month: string; totalControls: number; totalPassengers: number; totalFrauds: number; totalTarifsControle: number; totalPV: number }[],
-  weeklyFraudData: { label: string; passengers: number; frauds: number; rate: number }[]
+  weeklyFraudData: { label: string; passengers: number; frauds: number; rate: number }[],
+  barData: { date: string; 'À bord': number; 'En gare': number }[],
+  pieData: { name: string; value: number; color: string }[]
 ): string {
   const trainRows = trainStats.map(s => `
     <tr>
@@ -441,15 +443,21 @@ function generateTrainStatsHTML(
     </tr>
   `).join('');
 
+  // Generate SVG charts
+  const fraudRateChartSVG = generateFraudRateChart(weeklyFraudData);
+  const barChartSVG = generateBarChart(barData);
+  const pieChartSVG = generatePieChart(pieData);
+  const trainChartSVG = generateTrainChart(trainStats);
+
   return `
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Statistiques par train - SNCF</title>
+  <title>Statistiques SNCF - Rapport complet</title>
   <style>
     body { font-family: 'Segoe UI', Arial, sans-serif; margin: 20px; color: #333; font-size: 11px; }
-    h1 { color: #0066cc; border-bottom: 3px solid #0066cc; padding-bottom: 10px; }
+    h1 { color: #0066cc; border-bottom: 3px solid #0066cc; padding-bottom: 10px; margin-bottom: 20px; }
     h2 { color: #0066cc; margin-top: 30px; padding: 10px; background: #f0f7ff; border-radius: 8px; }
     table { width: 100%; border-collapse: collapse; margin-top: 10px; }
     th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
@@ -459,13 +467,40 @@ function generateTrainStatsHTML(
     .font-medium { font-weight: 500; }
     .font-bold { font-weight: 700; }
     .text-red { color: #dc2626; }
-    .summary { margin: 20px 0; padding: 15px; background: #f0f7ff; border-radius: 8px; }
-    @media print { body { margin: 0; font-size: 9px; } }
+    .chart-container { margin: 20px 0; display: flex; justify-content: center; }
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin: 20px 0; }
+    .chart-box { border: 1px solid #e5e5e5; border-radius: 12px; padding: 15px; background: #fafafa; }
+    .chart-title { font-weight: 600; color: #0066cc; margin-bottom: 10px; text-align: center; }
+    @media print { 
+      body { margin: 10px; font-size: 9px; } 
+      .charts-grid { grid-template-columns: 1fr 1fr; }
+      .chart-box { break-inside: avoid; }
+    }
   </style>
 </head>
 <body>
-  <h1>📊 Statistiques par train - SNCF</h1>
+  <h1>📊 Rapport Statistiques SNCF</h1>
   <p>Exporté le ${new Date().toLocaleString('fr-FR')}</p>
+
+  <h2>📈 Graphiques</h2>
+  <div class="charts-grid">
+    <div class="chart-box">
+      <div class="chart-title">Évolution du taux de fraude</div>
+      ${fraudRateChartSVG}
+    </div>
+    <div class="chart-box">
+      <div class="chart-title">Contrôles par jour (7 derniers jours)</div>
+      ${barChartSVG}
+    </div>
+    <div class="chart-box">
+      <div class="chart-title">Répartition des contrôles</div>
+      ${pieChartSVG}
+    </div>
+    <div class="chart-box">
+      <div class="chart-title">Top 10 trains - Passagers vs Fraudes</div>
+      ${trainChartSVG}
+    </div>
+  </div>
 
   <h2>📈 Évolution du taux de fraude par semaine</h2>
   <table>
@@ -515,4 +550,159 @@ function generateTrainStatsHTML(
   </table>
 </body>
 </html>`;
+}
+
+function generateFraudRateChart(data: { label: string; rate: number }[]): string {
+  const width = 300;
+  const height = 150;
+  const padding = 30;
+  const chartWidth = width - padding * 2;
+  const chartHeight = height - padding * 2;
+  
+  const maxRate = Math.max(...data.map(d => d.rate), 1);
+  const points = data.map((d, i) => {
+    const x = padding + (i / (data.length - 1 || 1)) * chartWidth;
+    const y = height - padding - (d.rate / maxRate) * chartHeight;
+    return `${x},${y}`;
+  }).join(' ');
+
+  const area = `M${padding},${height - padding} ` + 
+    data.map((d, i) => {
+      const x = padding + (i / (data.length - 1 || 1)) * chartWidth;
+      const y = height - padding - (d.rate / maxRate) * chartHeight;
+      return `L${x},${y}`;
+    }).join(' ') + 
+    ` L${width - padding},${height - padding} Z`;
+
+  return `
+    <svg viewBox="0 0 ${width} ${height}" style="width:100%;max-width:300px">
+      <defs>
+        <linearGradient id="fraudGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#dc2626" stop-opacity="0.3"/>
+          <stop offset="100%" stop-color="#dc2626" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <path d="${area}" fill="url(#fraudGrad)"/>
+      <polyline points="${points}" fill="none" stroke="#dc2626" stroke-width="2"/>
+      ${data.map((d, i) => {
+        const x = padding + (i / (data.length - 1 || 1)) * chartWidth;
+        return `<text x="${x}" y="${height - 10}" text-anchor="middle" font-size="8" fill="#666">${d.label}</text>`;
+      }).join('')}
+      <text x="${padding - 5}" y="${height - padding}" text-anchor="end" font-size="8" fill="#666">0%</text>
+      <text x="${padding - 5}" y="${padding + 5}" text-anchor="end" font-size="8" fill="#666">${maxRate.toFixed(1)}%</text>
+    </svg>
+  `;
+}
+
+function generateBarChart(data: { date: string; 'À bord': number; 'En gare': number }[]): string {
+  const width = 300;
+  const height = 150;
+  const padding = 30;
+  const chartHeight = height - padding * 2;
+  
+  const maxVal = Math.max(...data.flatMap(d => [d['À bord'], d['En gare']]), 1);
+  const barWidth = (width - padding * 2) / data.length / 2.5;
+
+  const bars = data.map((d, i) => {
+    const x = padding + (i + 0.5) * ((width - padding * 2) / data.length);
+    const h1 = (d['À bord'] / maxVal) * chartHeight;
+    const h2 = (d['En gare'] / maxVal) * chartHeight;
+    return `
+      <rect x="${x - barWidth}" y="${height - padding - h1}" width="${barWidth - 2}" height="${h1}" fill="#0066cc" rx="2"/>
+      <rect x="${x}" y="${height - padding - h2}" width="${barWidth - 2}" height="${h2}" fill="#22c55e" rx="2"/>
+      <text x="${x}" y="${height - 10}" text-anchor="middle" font-size="7" fill="#666">${d.date.split(' ')[0]}</text>
+    `;
+  }).join('');
+
+  return `
+    <svg viewBox="0 0 ${width} ${height}" style="width:100%;max-width:300px">
+      ${bars}
+      <rect x="${width - 80}" y="10" width="10" height="10" fill="#0066cc" rx="2"/>
+      <text x="${width - 65}" y="18" font-size="8" fill="#666">À bord</text>
+      <rect x="${width - 80}" y="25" width="10" height="10" fill="#22c55e" rx="2"/>
+      <text x="${width - 65}" y="33" font-size="8" fill="#666">En gare</text>
+    </svg>
+  `;
+}
+
+function generatePieChart(data: { name: string; value: number; color: string }[]): string {
+  const width = 200;
+  const height = 150;
+  const cx = 80;
+  const cy = 75;
+  const r = 50;
+  
+  const total = data.reduce((s, d) => s + d.value, 0);
+  if (total === 0) return '<svg viewBox="0 0 200 150"><text x="100" y="75" text-anchor="middle" fill="#999">Aucune donnée</text></svg>';
+  
+  let currentAngle = -90;
+  const slices = data.map((d, i) => {
+    const angle = (d.value / total) * 360;
+    const startAngle = currentAngle;
+    currentAngle += angle;
+    
+    const startRad = (startAngle * Math.PI) / 180;
+    const endRad = ((startAngle + angle) * Math.PI) / 180;
+    
+    const x1 = cx + r * Math.cos(startRad);
+    const y1 = cy + r * Math.sin(startRad);
+    const x2 = cx + r * Math.cos(endRad);
+    const y2 = cy + r * Math.sin(endRad);
+    
+    const largeArc = angle > 180 ? 1 : 0;
+    const color = d.color.replace('hsl(var(--success))', '#22c55e')
+                         .replace('hsl(var(--destructive))', '#dc2626')
+                         .replace('hsl(var(--warning))', '#f59e0b');
+    
+    return `<path d="M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${largeArc},1 ${x2},${y2} Z" fill="${color}"/>`;
+  }).join('');
+
+  const legend = data.map((d, i) => {
+    const color = d.color.replace('hsl(var(--success))', '#22c55e')
+                         .replace('hsl(var(--destructive))', '#dc2626')
+                         .replace('hsl(var(--warning))', '#f59e0b');
+    return `
+      <rect x="145" y="${20 + i * 18}" width="10" height="10" fill="${color}" rx="2"/>
+      <text x="160" y="${28 + i * 18}" font-size="8" fill="#666">${d.name}</text>
+    `;
+  }).join('');
+
+  return `
+    <svg viewBox="0 0 ${width} ${height}" style="width:100%;max-width:200px">
+      ${slices}
+      ${legend}
+    </svg>
+  `;
+}
+
+function generateTrainChart(data: { trainNumber: string; passengers: number; frauds: number }[]): string {
+  const width = 300;
+  const height = 200;
+  const padding = 50;
+  const chartWidth = width - padding - 10;
+  const barHeight = (height - 20) / data.length - 4;
+  
+  const maxVal = Math.max(...data.map(d => d.passengers), 1);
+
+  const bars = data.slice(0, 8).map((d, i) => {
+    const y = 10 + i * (barHeight + 4);
+    const w1 = (d.passengers / maxVal) * (chartWidth - padding);
+    const w2 = (d.frauds / maxVal) * (chartWidth - padding);
+    
+    return `
+      <text x="${padding - 5}" y="${y + barHeight / 2 + 3}" text-anchor="end" font-size="7" fill="#666">${d.trainNumber.slice(0, 8)}</text>
+      <rect x="${padding}" y="${y}" width="${w1}" height="${barHeight / 2 - 1}" fill="#0066cc" rx="2"/>
+      <rect x="${padding}" y="${y + barHeight / 2}" width="${w2}" height="${barHeight / 2 - 1}" fill="#dc2626" rx="2"/>
+    `;
+  }).join('');
+
+  return `
+    <svg viewBox="0 0 ${width} ${height}" style="width:100%;max-width:300px">
+      ${bars}
+      <rect x="${width - 70}" y="10" width="10" height="10" fill="#0066cc" rx="2"/>
+      <text x="${width - 55}" y="18" font-size="8" fill="#666">Passagers</text>
+      <rect x="${width - 70}" y="25" width="10" height="10" fill="#dc2626" rx="2"/>
+      <text x="${width - 55}" y="33" font-size="8" fill="#666">Fraudes</text>
+    </svg>
+  `;
 }
