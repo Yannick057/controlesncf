@@ -351,20 +351,13 @@ export default function OnboardControls() {
                 </div>
                 <div className="flex gap-2">
                   <Input
-                    type="text"
-                    placeholder="Description (optionnel)"
-                    value={tarifBordDescription}
-                    onChange={(e) => setTarifBordDescription(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Input
                     type="number"
                     min="0"
                     step="0.01"
                     placeholder="Montant (€)"
                     value={tarifBordMontant}
                     onChange={(e) => setTarifBordMontant(e.target.value)}
-                    className="w-32"
+                    className="flex-1"
                   />
                   <Button type="button" onClick={addTarifBord} variant="secondary">
                     <Plus className="mr-1 h-4 w-4" />

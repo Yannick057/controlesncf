@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOnboardControls, useStationControls } from '@/hooks/useControls';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { 
   Shield, Users, RefreshCw, Crown, UserCog, User as UserIcon, 
-  Download, Search, Filter, History, Key, X
+  Download, Search, Filter, History, Key, X, Database, Upload, Trash2
 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 
@@ -47,6 +48,8 @@ const ROLE_CONFIG: Record<AppRole, { label: string; icon: React.ComponentType<{ 
 
 export default function Admin() {
   const { user } = useAuth();
+  const { controls: onboardControls, clearControls: clearOnboard, setControls: setOnboard } = useOnboardControls();
+  const { controls: stationControls, clearControls: clearStation, setControls: setStation } = useStationControls();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [roleHistory, setRoleHistory] = useState<RoleHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,6 +59,7 @@ export default function Admin() {
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
   const [newPassword, setNewPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -189,14 +193,27 @@ export default function Admin() {
       return;
     }
 
+    setChangingPassword(true);
     try {
-      // Note: This requires admin privileges via edge function
-      toast.info('Fonctionnalité de changement de mot de passe en cours d\'implémentation');
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await supabase.functions.invoke('update-user-password', {
+        body: { targetUserId: selectedUser.id, newPassword },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Erreur lors du changement de mot de passe');
+      }
+
+      toast.success('Mot de passe modifié avec succès');
       setPasswordDialogOpen(false);
       setNewPassword('');
       setSelectedUser(null);
-    } catch (error) {
-      toast.error('Erreur lors du changement de mot de passe');
+    } catch (error: any) {
+      console.error('Error changing password:', error);
+      toast.error(error.message || 'Erreur lors du changement de mot de passe');
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -221,6 +238,63 @@ export default function Admin() {
     a.click();
     URL.revokeObjectURL(url);
     toast.success('Export CSV téléchargé');
+  };
+
+  // Data management functions
+  const handleExport = () => {
+    const data = {
+      onboardControls,
+      stationControls,
+      exportedAt: new Date().toISOString(),
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sncf-controles-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Données exportées avec succès');
+  };
+
+  const handleImport = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const data = JSON.parse(e.target?.result as string);
+            if (data.onboardControls) {
+              const merged = [...data.onboardControls, ...onboardControls];
+              setOnboard(merged);
+              localStorage.setItem('sncf-controls-onboard', JSON.stringify(merged));
+            }
+            if (data.stationControls) {
+              const merged = [...data.stationControls, ...stationControls];
+              setStation(merged);
+              localStorage.setItem('sncf-controls-station', JSON.stringify(merged));
+            }
+            toast.success('Données importées avec succès');
+          } catch {
+            toast.error('Fichier invalide');
+          }
+        };
+        reader.readAsText(file);
+      }
+    };
+    input.click();
+  };
+
+  const handleReset = () => {
+    if (confirm('Êtes-vous sûr de vouloir supprimer toutes les données ? Cette action est irréversible.')) {
+      clearOnboard();
+      clearStation();
+      toast.success('Toutes les données ont été supprimées');
+    }
   };
 
   if (user && user.role !== 'admin') {
@@ -292,6 +366,10 @@ export default function Admin() {
           <TabsTrigger value="history" className="gap-2">
             <History className="h-4 w-4" />
             Historique des rôles
+          </TabsTrigger>
+          <TabsTrigger value="data" className="gap-2">
+            <Database className="h-4 w-4" />
+            Gestion des données
           </TabsTrigger>
         </TabsList>
 
@@ -453,8 +531,11 @@ export default function Admin() {
                                       <DialogClose asChild>
                                         <Button variant="outline">Annuler</Button>
                                       </DialogClose>
-                                      <Button onClick={handlePasswordChange} disabled={newPassword.length < 6}>
-                                        Changer le mot de passe
+                                      <Button 
+                                        onClick={handlePasswordChange} 
+                                        disabled={newPassword.length < 6 || changingPassword}
+                                      >
+                                        {changingPassword ? 'Modification...' : 'Changer le mot de passe'}
                                       </Button>
                                     </DialogFooter>
                                   </DialogContent>
@@ -477,17 +558,17 @@ export default function Admin() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <History className="h-5 w-5 text-primary" />
-                Historique des modifications de rôles
+                Historique des modifications
               </CardTitle>
               <CardDescription>
-                Suivi de toutes les modifications de rôles effectuées
+                Consultez l'historique des changements de rôles
               </CardDescription>
             </CardHeader>
             <CardContent>
               {roleHistory.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                   <History className="h-12 w-12 mb-4" />
-                  <p>Aucune modification de rôle enregistrée</p>
+                  <p>Aucun historique disponible</p>
                 </div>
               ) : (
                 <div className="rounded-md border">
@@ -507,11 +588,8 @@ export default function Admin() {
                           <TableCell className="text-muted-foreground">
                             {new Date(entry.created_at).toLocaleString('fr-FR')}
                           </TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">{entry.user_name || 'Sans nom'}</p>
-                              <p className="text-xs text-muted-foreground">{entry.user_email}</p>
-                            </div>
+                          <TableCell className="font-medium">
+                            {entry.user_name || entry.user_email || entry.user_id.slice(0, 8)}
                           </TableCell>
                           <TableCell>
                             {entry.old_role ? (
@@ -527,11 +605,8 @@ export default function Admin() {
                               {ROLE_CONFIG[entry.new_role].label}
                             </Badge>
                           </TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">{entry.changer_name || 'Sans nom'}</p>
-                              <p className="text-xs text-muted-foreground">{entry.changer_email}</p>
-                            </div>
+                          <TableCell className="text-muted-foreground">
+                            {entry.changer_name || entry.changer_email || entry.changed_by.slice(0, 8)}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -539,6 +614,46 @@ export default function Admin() {
                   </Table>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="data">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5 text-primary" />
+                Gestion des données
+              </CardTitle>
+              <CardDescription>
+                {onboardControls.length + stationControls.length} contrôles enregistrés au total
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-lg border border-border p-4">
+                  <p className="text-sm text-muted-foreground">Contrôles à bord</p>
+                  <p className="text-2xl font-bold">{onboardControls.length}</p>
+                </div>
+                <div className="rounded-lg border border-border p-4">
+                  <p className="text-sm text-muted-foreground">Contrôles en gare</p>
+                  <p className="text-2xl font-bold">{stationControls.length}</p>
+                </div>
+              </div>
+              <div className="space-y-3 pt-4">
+                <Button variant="outline" className="w-full justify-start gap-2" onClick={handleExport}>
+                  <Download className="h-4 w-4" />
+                  Exporter tous les contrôles (JSON)
+                </Button>
+                <Button variant="outline" className="w-full justify-start gap-2" onClick={handleImport}>
+                  <Upload className="h-4 w-4" />
+                  Importer des contrôles
+                </Button>
+                <Button variant="destructive" className="w-full justify-start gap-2" onClick={handleReset}>
+                  <Trash2 className="h-4 w-4" />
+                  Réinitialiser toutes les données
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
