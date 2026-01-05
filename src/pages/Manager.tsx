@@ -12,9 +12,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { 
   UserCog, Users, RefreshCw, User as UserIcon, 
-  Search, Filter, History, Key, X
+  Search, Filter, History, Key, X, BarChart3, Download, FileText
 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
 type AppRole = 'admin' | 'manager' | 'agent';
 
@@ -44,6 +46,8 @@ const ROLE_CONFIG: Record<'manager' | 'agent', { label: string; icon: React.Comp
   agent: { label: 'Agent', icon: UserIcon, variant: 'outline' },
 };
 
+const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', 'hsl(var(--destructive))', 'hsl(var(--muted))'];
+
 export default function Manager() {
   const { user } = useAuth();
   const [users, setUsers] = useState<UserWithRole[]>([]);
@@ -55,6 +59,7 @@ export default function Manager() {
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
   const [newPassword, setNewPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
     if (user?.role === 'manager') {
@@ -200,14 +205,156 @@ export default function Manager() {
       return;
     }
 
+    setChangingPassword(true);
     try {
-      toast.info('Fonctionnalité de changement de mot de passe en cours d\'implémentation');
+      const response = await supabase.functions.invoke('update-user-password', {
+        body: { targetUserId: selectedUser.id, newPassword },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Erreur lors du changement de mot de passe');
+      }
+
+      toast.success('Mot de passe modifié avec succès');
       setPasswordDialogOpen(false);
       setNewPassword('');
       setSelectedUser(null);
-    } catch (error) {
-      toast.error('Erreur lors du changement de mot de passe');
+    } catch (error: any) {
+      console.error('Error changing password:', error);
+      toast.error(error.message || 'Erreur lors du changement de mot de passe');
+    } finally {
+      setChangingPassword(false);
     }
+  };
+
+  // Stats for charts
+  const roleDistribution = [
+    { name: 'Managers', value: users.filter(u => u.role === 'manager').length },
+    { name: 'Agents', value: users.filter(u => u.role === 'agent').length },
+  ];
+
+  // Registration by month (last 6 months)
+  const getRegistrationsByMonth = () => {
+    const months: { [key: string]: number } = {};
+    const now = new Date();
+    
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = date.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
+      months[key] = 0;
+    }
+
+    users.forEach(u => {
+      const date = new Date(u.created_at);
+      const key = date.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
+      if (months[key] !== undefined) {
+        months[key]++;
+      }
+    });
+
+    return Object.entries(months).map(([month, count]) => ({ month, count }));
+  };
+
+  const exportAgentReport = () => {
+    const reportContent = `
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Rapport d'activité des agents - ${new Date().toLocaleDateString('fr-FR')}</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
+    h1 { color: #1a1a1a; border-bottom: 2px solid #0066cc; padding-bottom: 10px; }
+    h2 { color: #333; margin-top: 30px; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+    th { background: #f5f5f5; font-weight: bold; }
+    .stats { display: flex; gap: 20px; margin: 20px 0; }
+    .stat-card { background: #f9f9f9; padding: 20px; border-radius: 8px; flex: 1; }
+    .stat-value { font-size: 2em; font-weight: bold; color: #0066cc; }
+    .stat-label { color: #666; }
+    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 0.9em; }
+  </style>
+</head>
+<body>
+  <h1>Rapport d'activité des agents</h1>
+  <p>Généré le ${new Date().toLocaleString('fr-FR')}</p>
+  
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-value">${users.length}</div>
+      <div class="stat-label">Total membres</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${users.filter(u => u.role === 'manager').length}</div>
+      <div class="stat-label">Managers</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${users.filter(u => u.role === 'agent').length}</div>
+      <div class="stat-label">Agents</div>
+    </div>
+  </div>
+
+  <h2>Liste des membres de l'équipe</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Nom</th>
+        <th>Email</th>
+        <th>Rôle</th>
+        <th>Date d'inscription</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${users.map(u => `
+        <tr>
+          <td>${u.full_name || 'Sans nom'}</td>
+          <td>${u.email}</td>
+          <td>${ROLE_CONFIG[u.role as 'manager' | 'agent']?.label || u.role}</td>
+          <td>${new Date(u.created_at).toLocaleDateString('fr-FR')}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+
+  <h2>Historique récent des modifications de rôles</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Utilisateur</th>
+        <th>Ancien rôle</th>
+        <th>Nouveau rôle</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${roleHistory.slice(0, 10).map(h => `
+        <tr>
+          <td>${new Date(h.created_at).toLocaleDateString('fr-FR')}</td>
+          <td>${h.user_name || h.user_email || '-'}</td>
+          <td>${h.old_role ? ROLE_CONFIG[h.old_role as 'manager' | 'agent']?.label || h.old_role : '-'}</td>
+          <td>${ROLE_CONFIG[h.new_role as 'manager' | 'agent']?.label || h.new_role}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+
+  <div class="footer">
+    <p>Ce rapport a été généré automatiquement par l'application SNCF Contrôle.</p>
+  </div>
+</body>
+</html>
+    `.trim();
+
+    const blob = new Blob([reportContent], { type: 'text/html;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const printWindow = window.open(url, '_blank');
+    if (printWindow) {
+      printWindow.onload = () => {
+        printWindow.print();
+      };
+    }
+    toast.success('Rapport PDF généré');
   };
 
   // Redirect non-managers
@@ -228,6 +375,10 @@ export default function Manager() {
     agent: users.filter((u) => u.role === 'agent').length,
   };
 
+  const chartConfig = {
+    count: { label: 'Inscriptions', color: 'hsl(var(--primary))' },
+  };
+
   return (
     <div className="space-y-6 pb-8">
       <div className="flex items-center justify-between">
@@ -238,10 +389,16 @@ export default function Manager() {
           </h1>
           <p className="text-muted-foreground">Gérez les agents et managers de votre équipe</p>
         </div>
-        <Button variant="outline" onClick={() => { fetchUsers(); fetchRoleHistory(); }} disabled={loading}>
-          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          Actualiser
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={exportAgentReport}>
+            <FileText className="mr-2 h-4 w-4" />
+            Rapport PDF
+          </Button>
+          <Button variant="outline" onClick={() => { fetchUsers(); fetchRoleHistory(); }} disabled={loading}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Actualiser
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -269,6 +426,10 @@ export default function Manager() {
           <TabsTrigger value="users" className="gap-2">
             <Users className="h-4 w-4" />
             Membres de l'équipe
+          </TabsTrigger>
+          <TabsTrigger value="stats" className="gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Statistiques
           </TabsTrigger>
           <TabsTrigger value="history" className="gap-2">
             <History className="h-4 w-4" />
@@ -428,8 +589,11 @@ export default function Manager() {
                                       <DialogClose asChild>
                                         <Button variant="outline">Annuler</Button>
                                       </DialogClose>
-                                      <Button onClick={handlePasswordChange} disabled={newPassword.length < 6}>
-                                        Changer le mot de passe
+                                      <Button 
+                                        onClick={handlePasswordChange} 
+                                        disabled={newPassword.length < 6 || changingPassword}
+                                      >
+                                        {changingPassword ? 'Modification...' : 'Changer le mot de passe'}
                                       </Button>
                                     </DialogFooter>
                                   </DialogContent>
@@ -447,22 +611,73 @@ export default function Manager() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="stats">
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Répartition des rôles</CardTitle>
+                <CardDescription>Distribution des membres par rôle</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[250px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={roleDistribution}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                        label={({ name, value }) => `${name}: ${value}`}
+                      >
+                        {roleDistribution.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Inscriptions par mois</CardTitle>
+                <CardDescription>Nouveaux membres sur les 6 derniers mois</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer config={chartConfig} className="h-[250px]">
+                  <BarChart data={getRegistrationsByMonth()}>
+                    <XAxis dataKey="month" />
+                    <YAxis allowDecimals={false} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
         <TabsContent value="history">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <History className="h-5 w-5 text-primary" />
-                Historique des modifications de rôles
+                Historique des modifications
               </CardTitle>
               <CardDescription>
-                Suivi des modifications de rôles (hors administrateurs)
+                Consultez l'historique des changements de rôles (non-admin uniquement)
               </CardDescription>
             </CardHeader>
             <CardContent>
               {roleHistory.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                   <History className="h-12 w-12 mb-4" />
-                  <p>Aucune modification de rôle enregistrée</p>
+                  <p>Aucun historique disponible</p>
                 </div>
               ) : (
                 <div className="rounded-md border">
@@ -477,47 +692,37 @@ export default function Manager() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {roleHistory.map((entry) => {
-                        const oldConfig = entry.old_role && entry.old_role !== 'admin' ? ROLE_CONFIG[entry.old_role as 'manager' | 'agent'] : null;
-                        const newConfig = entry.new_role !== 'admin' ? ROLE_CONFIG[entry.new_role as 'manager' | 'agent'] : null;
-                        return (
-                          <TableRow key={entry.id}>
-                            <TableCell className="text-muted-foreground">
-                              {new Date(entry.created_at).toLocaleString('fr-FR')}
-                            </TableCell>
-                            <TableCell>
-                              <div>
-                                <p className="font-medium">{entry.user_name || 'Sans nom'}</p>
-                                <p className="text-xs text-muted-foreground">{entry.user_email}</p>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {oldConfig ? (
-                                <Badge variant={oldConfig.variant}>
-                                  {oldConfig.label}
-                                </Badge>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {newConfig ? (
-                                <Badge variant={newConfig.variant}>
-                                  {newConfig.label}
-                                </Badge>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <div>
-                                <p className="font-medium">{entry.changer_name || 'Sans nom'}</p>
-                                <p className="text-xs text-muted-foreground">{entry.changer_email}</p>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
+                      {roleHistory.map((entry) => (
+                        <TableRow key={entry.id}>
+                          <TableCell className="text-muted-foreground">
+                            {new Date(entry.created_at).toLocaleString('fr-FR')}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {entry.user_name || entry.user_email || entry.user_id.slice(0, 8)}
+                          </TableCell>
+                          <TableCell>
+                            {entry.old_role && ROLE_CONFIG[entry.old_role as 'manager' | 'agent'] ? (
+                              <Badge variant={ROLE_CONFIG[entry.old_role as 'manager' | 'agent'].variant}>
+                                {ROLE_CONFIG[entry.old_role as 'manager' | 'agent'].label}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {ROLE_CONFIG[entry.new_role as 'manager' | 'agent'] ? (
+                              <Badge variant={ROLE_CONFIG[entry.new_role as 'manager' | 'agent'].variant}>
+                                {ROLE_CONFIG[entry.new_role as 'manager' | 'agent'].label}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">{entry.new_role}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {entry.changer_name || entry.changer_email || entry.changed_by.slice(0, 8)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
                     </TableBody>
                   </Table>
                 </div>

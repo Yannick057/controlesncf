@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import { 
-  User, Palette, Database, Bell, Info, 
-  Moon, Sun, Monitor, Download, Upload, Trash2, 
-  ExternalLink, Bug, HelpCircle, Check, ShieldCheck,
+  User, Palette, Bell, Info, 
+  Moon, Sun, Monitor, 
+  Check, ShieldCheck,
   Navigation as NavigationIcon, GripVertical
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme, THEME_OPTIONS, Theme } from '@/contexts/ThemeContext';
-import { useOnboardControls, useStationControls } from '@/hooks/useControls';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -53,12 +52,11 @@ const PAGE_ORDER_OPTIONS = [
 export default function Settings() {
   const { user, refreshUserRole } = useAuth();
   const { theme, setTheme } = useTheme();
-  const { controls: onboardControls, clearControls: clearOnboard, setControls: setOnboard } = useOnboardControls();
-  const { controls: stationControls, clearControls: clearStation, setControls: setStation } = useStationControls();
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [defaultPage, setDefaultPage] = useState('/');
   const [pageOrder, setPageOrder] = useState<string[]>(['dashboard', 'onboard', 'station', 'history', 'settings']);
   const [savingPreferences, setSavingPreferences] = useState(false);
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
 
   // Refresh user role on mount
   useEffect(() => {
@@ -75,43 +73,84 @@ export default function Settings() {
     if (!user?.id) return;
     
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('user_preferences')
         .select('default_page, page_order')
         .eq('user_id', user.id)
         .maybeSingle();
 
+      if (error) {
+        console.error('Error loading preferences:', error);
+        return;
+      }
+
       if (data) {
-        setDefaultPage(data.default_page);
+        setDefaultPage(data.default_page || '/');
         if (data.page_order && Array.isArray(data.page_order)) {
           setPageOrder(data.page_order as string[]);
         }
+      } else {
+        // Load from localStorage as fallback
+        const savedPage = localStorage.getItem('user_default_page');
+        const savedOrder = localStorage.getItem('user_page_order');
+        if (savedPage) setDefaultPage(savedPage);
+        if (savedOrder) {
+          try {
+            setPageOrder(JSON.parse(savedOrder));
+          } catch {}
+        }
       }
+      setPrefsLoaded(true);
     } catch (error) {
       console.error('Error loading preferences:', error);
+      setPrefsLoaded(true);
     }
   };
 
   const saveUserPreferences = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      toast.error('Utilisateur non connecté');
+      return;
+    }
     
     setSavingPreferences(true);
     try {
-      const { data: existing } = await supabase
+      const { data: existing, error: fetchError } = await supabase
         .from('user_preferences')
         .select('id')
         .eq('user_id', user.id)
         .maybeSingle();
 
+      if (fetchError) {
+        console.error('Error checking existing preferences:', fetchError);
+        throw fetchError;
+      }
+
+      let saveError;
       if (existing) {
-        await supabase
+        const { error } = await supabase
           .from('user_preferences')
-          .update({ default_page: defaultPage, page_order: pageOrder })
+          .update({ 
+            default_page: defaultPage, 
+            page_order: pageOrder,
+            updated_at: new Date().toISOString()
+          })
           .eq('user_id', user.id);
+        saveError = error;
       } else {
-        await supabase
+        const { error } = await supabase
           .from('user_preferences')
-          .insert({ user_id: user.id, default_page: defaultPage, page_order: pageOrder });
+          .insert({ 
+            user_id: user.id, 
+            default_page: defaultPage, 
+            page_order: pageOrder 
+          });
+        saveError = error;
+      }
+
+      if (saveError) {
+        console.error('Error saving preferences:', saveError);
+        throw saveError;
       }
 
       // Save to localStorage for quick access
@@ -159,62 +198,6 @@ export default function Settings() {
   };
 
   const userRole = user?.role || 'agent';
-
-  const handleExport = () => {
-    const data = {
-      onboardControls,
-      stationControls,
-      exportedAt: new Date().toISOString(),
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `sncf-controles-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('Données exportées avec succès');
-  };
-
-  const handleImport = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          try {
-            const data = JSON.parse(e.target?.result as string);
-            if (data.onboardControls) {
-              const merged = [...data.onboardControls, ...onboardControls];
-              setOnboard(merged);
-              localStorage.setItem('sncf-controls-onboard', JSON.stringify(merged));
-            }
-            if (data.stationControls) {
-              const merged = [...data.stationControls, ...stationControls];
-              setStation(merged);
-              localStorage.setItem('sncf-controls-station', JSON.stringify(merged));
-            }
-            toast.success('Données importées avec succès');
-          } catch {
-            toast.error('Fichier invalide');
-          }
-        };
-        reader.readAsText(file);
-      }
-    };
-    input.click();
-  };
-
-  const handleReset = () => {
-    if (confirm('Êtes-vous sûr de vouloir supprimer toutes les données ? Cette action est irréversible.')) {
-      clearOnboard();
-      clearStation();
-      toast.success('Toutes les données ont été supprimées');
-    }
-  };
 
   return (
     <div className="space-y-6 pb-8">
@@ -286,6 +269,9 @@ export default function Settings() {
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">
+              Page actuelle: {PAGE_OPTIONS.find(p => p.value === defaultPage)?.label || defaultPage}
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -378,35 +364,8 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      {/* Data Management */}
-      <Card className="animate-slide-up" style={{ animationDelay: '100ms' }}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Database className="h-5 w-5 text-primary" />
-            Gestion des données
-          </CardTitle>
-          <CardDescription>
-            {onboardControls.length + stationControls.length} contrôles enregistrés
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Button variant="outline" className="w-full justify-start gap-2" onClick={handleExport}>
-            <Download className="h-4 w-4" />
-            Exporter mes contrôles (JSON)
-          </Button>
-          <Button variant="outline" className="w-full justify-start gap-2" onClick={handleImport}>
-            <Upload className="h-4 w-4" />
-            Importer des contrôles
-          </Button>
-          <Button variant="destructive" className="w-full justify-start gap-2" onClick={handleReset}>
-            <Trash2 className="h-4 w-4" />
-            Réinitialiser toutes les données
-          </Button>
-        </CardContent>
-      </Card>
-
       {/* Notifications */}
-      <Card className="animate-slide-up" style={{ animationDelay: '150ms' }}>
+      <Card className="animate-slide-up" style={{ animationDelay: '100ms' }}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Bell className="h-5 w-5 text-primary" />
@@ -441,7 +400,7 @@ export default function Settings() {
       </Card>
 
       {/* About */}
-      <Card className="animate-slide-up" style={{ animationDelay: '200ms' }}>
+      <Card className="animate-slide-up" style={{ animationDelay: '150ms' }}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Info className="h-5 w-5 text-primary" />
@@ -460,22 +419,8 @@ export default function Settings() {
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Dernière mise à jour</span>
-              <span className="font-medium">31/12/2025</span>
+              <span className="font-medium">Janvier 2026</span>
             </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" className="gap-2">
-              <ExternalLink className="h-4 w-4" />
-              Notes de version
-            </Button>
-            <Button variant="outline" size="sm" className="gap-2">
-              <Bug className="h-4 w-4" />
-              Signaler un bug
-            </Button>
-            <Button variant="outline" size="sm" className="gap-2">
-              <HelpCircle className="h-4 w-4" />
-              Support SNCF
-            </Button>
           </div>
         </CardContent>
       </Card>
