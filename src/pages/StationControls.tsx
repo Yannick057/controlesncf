@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Building2, AlertTriangle, FileText, User, Download, FileCode, Ticket } from 'lucide-react';
+import { Plus, Building2, AlertTriangle, FileText, User, Download, FileCode, Ticket, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,13 +11,13 @@ import { TypeToggle, TarifType } from '@/components/controls/TypeToggle';
 import { TarifList } from '@/components/controls/TarifList';
 import { TarifBordList } from '@/components/controls/TarifBordList';
 import { CitySelect } from '@/components/controls/CitySelect';
-import { useStationControls, StationControl, TarifItem, TarifBordItem, TarifBordType } from '@/hooks/useControls';
+import { useSupabaseStationControls, StationControl, TarifItem, TarifBordItem, TarifBordType } from '@/hooks/useSupabaseControls';
 import { exportToHTML, exportToPDF } from '@/utils/exportControls';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 export default function StationControls() {
-  const { controls, addControl } = useStationControls();
+  const { controls, loading, addControl } = useSupabaseStationControls();
   const today = new Date().toISOString().split('T')[0];
   const now = new Date().toTimeString().slice(0, 5);
 

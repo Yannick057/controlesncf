@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line, AreaChart, Area } from 'recharts';
-import { OnboardControl, StationControl } from '@/hooks/useControls';
+import { OnboardControl, StationControl } from '@/hooks/useSupabaseControls';
 import { useMemo } from 'react';
 import { Download, FileText } from 'lucide-react';
 import { toast } from 'sonner';

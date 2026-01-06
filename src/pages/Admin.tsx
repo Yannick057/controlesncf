@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useOnboardControls, useStationControls } from '@/hooks/useControls';
+import { useSupabaseOnboardControls, useSupabaseStationControls } from '@/hooks/useSupabaseControls';
+import { useBugReports } from '@/hooks/useBugReports';
+import { useReleaseNotes } from '@/hooks/useReleaseNotes';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -13,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { 
   Shield, Users, RefreshCw, Crown, UserCog, User as UserIcon, 
-  Download, Search, Filter, History, Key, X, Database, Upload, Trash2
+  Download, Search, Filter, History, Key, X, Database, Upload, Trash2, Bug, Sparkles, Plus
 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 
@@ -48,8 +52,10 @@ const ROLE_CONFIG: Record<AppRole, { label: string; icon: React.ComponentType<{ 
 
 export default function Admin() {
   const { user } = useAuth();
-  const { controls: onboardControls, clearControls: clearOnboard, setControls: setOnboard } = useOnboardControls();
-  const { controls: stationControls, clearControls: clearStation, setControls: setStation } = useStationControls();
+  const { controls: onboardControls, clearControls: clearOnboard, setControls: setOnboard } = useSupabaseOnboardControls();
+  const { controls: stationControls, clearControls: clearStation, setControls: setStation } = useSupabaseStationControls();
+  const { reports: bugReports, updateStatus: updateBugStatus, refetch: refetchBugs } = useBugReports();
+  const { releaseNotes, addReleaseNote, refetch: refetchReleaseNotes } = useReleaseNotes();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [roleHistory, setRoleHistory] = useState<RoleHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -358,7 +364,7 @@ export default function Admin() {
       </div>
 
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="users" className="gap-2">
             <Users className="h-4 w-4" />
             Utilisateurs
@@ -366,6 +372,14 @@ export default function Admin() {
           <TabsTrigger value="history" className="gap-2">
             <History className="h-4 w-4" />
             Historique des rôles
+          </TabsTrigger>
+          <TabsTrigger value="bugs" className="gap-2">
+            <Bug className="h-4 w-4" />
+            Bugs signalés
+          </TabsTrigger>
+          <TabsTrigger value="releases" className="gap-2">
+            <Sparkles className="h-4 w-4" />
+            Notes de version
           </TabsTrigger>
           <TabsTrigger value="data" className="gap-2">
             <Database className="h-4 w-4" />
@@ -614,6 +628,131 @@ export default function Admin() {
                   </Table>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="bugs">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Bug className="h-5 w-5 text-primary" />
+                    Bugs signalés ({bugReports.length})
+                  </CardTitle>
+                  <CardDescription>
+                    Gérez les signalements de bugs des utilisateurs
+                  </CardDescription>
+                </div>
+                <Button variant="outline" onClick={refetchBugs}>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Actualiser
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {bugReports.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <Bug className="h-12 w-12 mb-4" />
+                  <p>Aucun bug signalé</p>
+                </div>
+              ) : (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Titre</TableHead>
+                        <TableHead>Priorité</TableHead>
+                        <TableHead>Statut</TableHead>
+                        <TableHead>Signalé par</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {bugReports.map((bug) => (
+                        <TableRow key={bug.id}>
+                          <TableCell className="text-muted-foreground">
+                            {new Date(bug.createdAt).toLocaleDateString('fr-FR')}
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{bug.title}</p>
+                              <p className="text-xs text-muted-foreground line-clamp-1">{bug.description}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={bug.priority === 'high' ? 'destructive' : bug.priority === 'medium' ? 'default' : 'secondary'}>
+                              {bug.priority === 'high' ? 'Haute' : bug.priority === 'medium' ? 'Moyenne' : 'Faible'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={bug.status === 'resolved' ? 'default' : bug.status === 'in_progress' ? 'secondary' : 'outline'}>
+                              {bug.status === 'open' ? 'Ouvert' : bug.status === 'in_progress' ? 'En cours' : bug.status === 'resolved' ? 'Résolu' : 'Fermé'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {bug.userName || bug.userEmail || '-'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Select 
+                              value={bug.status} 
+                              onValueChange={(v) => updateBugStatus(bug.id, v as 'open' | 'in_progress' | 'resolved' | 'closed')}
+                            >
+                              <SelectTrigger className="w-[120px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="open">Ouvert</SelectItem>
+                                <SelectItem value="in_progress">En cours</SelectItem>
+                                <SelectItem value="resolved">Résolu</SelectItem>
+                                <SelectItem value="closed">Fermé</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="releases">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                    Notes de version ({releaseNotes.length})
+                  </CardTitle>
+                  <CardDescription>
+                    Gérez les notes de version de l'application
+                  </CardDescription>
+                </div>
+                <Button variant="outline" onClick={refetchReleaseNotes}>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Actualiser
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {releaseNotes.map((note) => (
+                <div key={note.id} className="rounded-lg border p-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Badge>v{note.version}</Badge>
+                    <span className="text-sm text-muted-foreground">
+                      {new Date(note.releaseDate).toLocaleDateString('fr-FR')}
+                    </span>
+                  </div>
+                  <h4 className="font-semibold">{note.title}</h4>
+                  <p className="text-sm text-muted-foreground">{note.content}</p>
+                </div>
+              ))}
             </CardContent>
           </Card>
         </TabsContent>

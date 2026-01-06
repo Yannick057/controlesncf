@@ -1,16 +1,16 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Train, Building2, Users, AlertTriangle } from 'lucide-react';
+import { Train, Building2, Users, AlertTriangle, Loader2 } from 'lucide-react';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { Charts } from '@/components/dashboard/Charts';
 import { RecentControlsTable } from '@/components/dashboard/RecentControlsTable';
 import { DashboardFilters, DashboardFiltersState } from '@/components/dashboard/DashboardFilters';
 import { FraudAlertSettings } from '@/components/dashboard/FraudAlertSettings';
-import { useOnboardControls, useStationControls, useControlStats } from '@/hooks/useControls';
+import { useSupabaseOnboardControls, useSupabaseStationControls, useControlStats } from '@/hooks/useSupabaseControls';
 import { useFraudNotifications } from '@/hooks/useFraudNotifications';
 
 export default function Dashboard() {
-  const { controls: onboardControls } = useOnboardControls();
-  const { controls: stationControls } = useStationControls();
+  const { controls: onboardControls, loading: loadingOnboard } = useSupabaseOnboardControls();
+  const { controls: stationControls, loading: loadingStation } = useSupabaseStationControls();
   const { checkFraudRate } = useFraudNotifications();
 
   // Initialize filters with last 7 days

@@ -1,4 +1,4 @@
-import { OnboardControl, StationControl } from '@/hooks/useControls';
+import { OnboardControl, StationControl } from '@/hooks/useSupabaseControls';
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('fr-FR');

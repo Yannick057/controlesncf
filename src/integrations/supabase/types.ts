@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      bug_reports: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          priority: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          priority?: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          priority?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notification_settings: {
         Row: {
           created_at: string
@@ -36,6 +69,75 @@ export type Database = {
           fraud_threshold?: number
           id?: string
           notifications_enabled?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      onboard_controls: {
+        Row: {
+          commentaire: string | null
+          control_date: string
+          control_time: string
+          created_at: string
+          destination: string
+          fraud_count: number
+          fraud_rate: number
+          id: string
+          origin: string
+          passengers: number
+          pv_list: Json
+          ri_negatif: number
+          ri_positif: number
+          stt100_count: number
+          stt50_count: number
+          tarifs_bord: Json
+          tarifs_controle: Json
+          train_number: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          commentaire?: string | null
+          control_date: string
+          control_time: string
+          created_at?: string
+          destination: string
+          fraud_count?: number
+          fraud_rate?: number
+          id?: string
+          origin: string
+          passengers?: number
+          pv_list?: Json
+          ri_negatif?: number
+          ri_positif?: number
+          stt100_count?: number
+          stt50_count?: number
+          tarifs_bord?: Json
+          tarifs_controle?: Json
+          train_number: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          commentaire?: string | null
+          control_date?: string
+          control_time?: string
+          created_at?: string
+          destination?: string
+          fraud_count?: number
+          fraud_rate?: number
+          id?: string
+          origin?: string
+          passengers?: number
+          pv_list?: Json
+          ri_negatif?: number
+          ri_positif?: number
+          stt100_count?: number
+          stt50_count?: number
+          tarifs_bord?: Json
+          tarifs_controle?: Json
+          train_number?: string
           updated_at?: string
           user_id?: string
         }
@@ -65,6 +167,33 @@ export type Database = {
         }
         Relationships: []
       }
+      release_notes: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          release_date: string
+          title: string
+          version: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          release_date?: string
+          title: string
+          version: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          release_date?: string
+          title?: string
+          version?: string
+        }
+        Relationships: []
+      }
       role_history: {
         Row: {
           changed_by: string
@@ -89,6 +218,108 @@ export type Database = {
           new_role?: Database["public"]["Enums"]["app_role"]
           old_role?: Database["public"]["Enums"]["app_role"] | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      station_controls: {
+        Row: {
+          commentaire: string | null
+          control_date: string
+          control_time: string
+          created_at: string
+          destination: string
+          fraud_count: number
+          fraud_rate: number
+          id: string
+          origin: string
+          passengers: number
+          platform: string
+          pv_list: Json
+          ri_negatif: number
+          ri_positif: number
+          station_name: string
+          stt100_count: number
+          stt50_count: number
+          tarifs_bord: Json
+          tarifs_controle: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          commentaire?: string | null
+          control_date: string
+          control_time: string
+          created_at?: string
+          destination: string
+          fraud_count?: number
+          fraud_rate?: number
+          id?: string
+          origin: string
+          passengers?: number
+          platform: string
+          pv_list?: Json
+          ri_negatif?: number
+          ri_positif?: number
+          station_name: string
+          stt100_count?: number
+          stt50_count?: number
+          tarifs_bord?: Json
+          tarifs_controle?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          commentaire?: string | null
+          control_date?: string
+          control_time?: string
+          created_at?: string
+          destination?: string
+          fraud_count?: number
+          fraud_rate?: number
+          id?: string
+          origin?: string
+          passengers?: number
+          platform?: string
+          pv_list?: Json
+          ri_negatif?: number
+          ri_positif?: number
+          station_name?: string
+          stt100_count?: number
+          stt50_count?: number
+          tarifs_bord?: Json
+          tarifs_controle?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      team_notes: {
+        Row: {
+          author_id: string
+          content: string
+          created_at: string
+          id: string
+          is_read: boolean
+          recipient_id: string
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          content: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          recipient_id: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          recipient_id?: string
+          updated_at?: string
         }
         Relationships: []
       }

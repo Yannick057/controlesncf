@@ -12,9 +12,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { 
   UserCog, Users, RefreshCw, User as UserIcon, 
-  Search, Filter, History, Key, X, BarChart3, Download, FileText
+  Search, Filter, History, Key, X, BarChart3, Download, FileText, MessageSquare
 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
+import { TeamNotesPanel } from '@/components/features/TeamNotesPanel';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -427,6 +428,10 @@ export default function Manager() {
             <Users className="h-4 w-4" />
             Membres de l'équipe
           </TabsTrigger>
+          <TabsTrigger value="notes" className="gap-2">
+            <MessageSquare className="h-4 w-4" />
+            Notes
+          </TabsTrigger>
           <TabsTrigger value="stats" className="gap-2">
             <BarChart3 className="h-4 w-4" />
             Statistiques
@@ -609,6 +614,10 @@ export default function Manager() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="notes">
+          <TeamNotesPanel />
         </TabsContent>
 
         <TabsContent value="stats">
