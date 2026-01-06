@@ -1,6 +1,6 @@
 import { Train, Building2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { OnboardControl, StationControl } from '@/hooks/useControls';
+import { OnboardControl, StationControl } from '@/hooks/useSupabaseControls';
 import { cn } from '@/lib/utils';
 
 interface RecentControlsTableProps {
@@ -10,7 +10,7 @@ interface RecentControlsTableProps {
 
 type CombinedControl = {
   type: 'train' | 'station';
-  id: number;
+  id: string;
   label: string;
   datetime: string;
   passengers: number;

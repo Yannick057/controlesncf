@@ -16,7 +16,7 @@ interface ControlsTableProps<T> {
   emptyMessage?: string;
 }
 
-export function ControlsTable<T extends { id: number }>({
+export function ControlsTable<T extends { id: string | number }>({
   title,
   description,
   data,

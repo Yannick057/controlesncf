@@ -3,16 +3,19 @@ import {
   User, Palette, Bell, Info, 
   Moon, Sun, Monitor, 
   Check, ShieldCheck,
-  Navigation as NavigationIcon, GripVertical
+  Navigation as NavigationIcon, GripVertical, Bug, Sparkles
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme, THEME_OPTIONS, Theme } from '@/contexts/ThemeContext';
+import { useReleaseNotes } from '@/hooks/useReleaseNotes';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { BugReportDialog } from '@/components/features/BugReportDialog';
+import { ReleaseNotesDialog } from '@/components/features/ReleaseNotesDialog';
 
 type UserRole = 'agent' | 'manager' | 'admin';
 
@@ -52,6 +55,7 @@ const PAGE_ORDER_OPTIONS = [
 export default function Settings() {
   const { user, refreshUserRole } = useAuth();
   const { theme, setTheme } = useTheme();
+  const { latestVersion, loading: loadingVersion } = useReleaseNotes();
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [defaultPage, setDefaultPage] = useState('/');
   const [pageOrder, setPageOrder] = useState<string[]>(['dashboard', 'onboard', 'station', 'history', 'settings']);
@@ -399,6 +403,35 @@ export default function Settings() {
         </CardContent>
       </Card>
 
+      {/* Support & Feedback */}
+      <Card className="animate-slide-up" style={{ animationDelay: '125ms' }}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bug className="h-5 w-5 text-primary" />
+            Support & Feedback
+          </CardTitle>
+          <CardDescription>
+            Signaler un problème ou consulter les mises à jour
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-3">
+            <BugReportDialog>
+              <Button variant="outline">
+                <Bug className="mr-2 h-4 w-4" />
+                Signaler un bug
+              </Button>
+            </BugReportDialog>
+            <ReleaseNotesDialog>
+              <Button variant="outline">
+                <Sparkles className="mr-2 h-4 w-4" />
+                Notes de version
+              </Button>
+            </ReleaseNotesDialog>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* About */}
       <Card className="animate-slide-up" style={{ animationDelay: '150ms' }}>
         <CardHeader>
@@ -411,7 +444,9 @@ export default function Settings() {
           <div className="grid gap-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Version app</span>
-              <span className="font-medium">1.0.0</span>
+              <span className="font-medium">
+                {loadingVersion ? '...' : latestVersion?.version || '1.0.0'}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Version API</span>
@@ -419,7 +454,11 @@ export default function Settings() {
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Dernière mise à jour</span>
-              <span className="font-medium">Janvier 2026</span>
+              <span className="font-medium">
+                {loadingVersion ? '...' : latestVersion?.releaseDate 
+                  ? new Date(latestVersion.releaseDate).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+                  : 'Janvier 2026'}
+              </span>
             </div>
           </div>
         </CardContent>
