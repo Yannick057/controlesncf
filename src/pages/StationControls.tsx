@@ -1,4 +1,4 @@
-import { Plus, Building2, AlertTriangle, FileText, User, Download, Ticket, Loader2 } from 'lucide-react';
+import { Plus, Building2, AlertTriangle, FileText, User, Download, Ticket, Loader2, Trash2 } from 'lucide-react';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -72,7 +72,7 @@ export default function StationControls() {
     commentaire: '',
   };
 
-  const { values, updateField, updateFields, clearPersistedData } = useFormPersistence<StationFormData>({
+  const { values, updateField, updateFields, clearPersistedData, isDirty } = useFormPersistence<StationFormData>({
     key: 'station_control',
     defaultValues: defaultFormValues,
     formName: 'Contrôle en gare',
@@ -548,10 +548,26 @@ export default function StationControls() {
                   </div>
                 </div>
 
-                <Button type="submit" variant="hero" size="lg" className="w-full">
-                  <Plus className="h-4 w-4" />
-                  Enregistrer le contrôle
-                </Button>
+                <div className="flex gap-2">
+                  <Button type="submit" variant="hero" size="lg" className="flex-1">
+                    <Plus className="h-4 w-4" />
+                    Enregistrer le contrôle
+                  </Button>
+                  {isDirty && (
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="lg"
+                      onClick={() => {
+                        clearPersistedData();
+                        toast.success('Brouillon effacé');
+                      }}
+                      title="Effacer le brouillon"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>
