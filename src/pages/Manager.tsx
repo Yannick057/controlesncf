@@ -429,28 +429,28 @@ export default function Manager() {
       </div>
 
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList>
+        <TabsList className="flex h-auto flex-wrap justify-start gap-1">
           <TabsTrigger value="users" className="gap-2">
             <Users className="h-4 w-4" />
-            Membres de l'équipe
+            <span className="hidden sm:inline">Membres</span>
           </TabsTrigger>
           <TabsTrigger value="notes" className="gap-2">
             <MessageSquare className="h-4 w-4" />
-            Notes
+            <span className="hidden sm:inline">Notes</span>
           </TabsTrigger>
           <TabsTrigger value="stats" className="gap-2">
             <BarChart3 className="h-4 w-4" />
-            Statistiques
+            <span className="hidden sm:inline">Stats</span>
           </TabsTrigger>
           {featureSettings.agent_performance_charts && (
             <TabsTrigger value="performance" className="gap-2">
               <TrendingUp className="h-4 w-4" />
-              Performance agents
+              <span className="hidden sm:inline">Perf.</span>
             </TabsTrigger>
           )}
           <TabsTrigger value="history" className="gap-2">
             <History className="h-4 w-4" />
-            Historique des rôles
+            <span className="hidden sm:inline">Historique</span>
           </TabsTrigger>
         </TabsList>
 
