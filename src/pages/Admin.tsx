@@ -367,7 +367,7 @@ export default function Admin() {
       </div>
 
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="flex-wrap">
+        <TabsList className="flex h-auto flex-wrap justify-start gap-1">
           <TabsTrigger value="users" className="gap-2">
             <Users className="h-4 w-4" />
             Utilisateurs
