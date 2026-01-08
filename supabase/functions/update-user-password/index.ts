@@ -5,6 +5,28 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Simple in-memory rate limiting (resets on cold start, but provides basic protection)
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 5; // 5 requests per minute per user
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const userLimit = rateLimitMap.get(userId);
+  
+  if (!userLimit || now > userLimit.resetTime) {
+    rateLimitMap.set(userId, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  
+  if (userLimit.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return false;
+  }
+  
+  userLimit.count++;
+  return true;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -45,6 +67,15 @@ Deno.serve(async (req) => {
 
     console.log('Caller user:', callerUser.id, callerUser.email)
 
+    // Check rate limit
+    if (!checkRateLimit(callerUser.id)) {
+      console.log('Rate limit exceeded for user:', callerUser.id)
+      return new Response(
+        JSON.stringify({ error: 'Too many requests. Please try again later.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     // Get caller role
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey)
     const { data: callerRoleData, error: roleError } = await supabaseAdmin
@@ -84,10 +115,20 @@ Deno.serve(async (req) => {
       )
     }
 
-    if (newPassword.length < 6) {
+    if (newPassword.length < 8) {
       console.log('Password too short')
       return new Response(
-        JSON.stringify({ error: 'Password must be at least 6 characters' }),
+        JSON.stringify({ error: 'Password must be at least 8 characters' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Enhanced password validation: require at least one uppercase, one lowercase, and one number
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
+    if (!passwordRegex.test(newPassword)) {
+      console.log('Password does not meet complexity requirements')
+      return new Response(
+        JSON.stringify({ error: 'Password must contain at least one uppercase letter, one lowercase letter, and one number' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -129,12 +170,12 @@ Deno.serve(async (req) => {
     if (updateError) {
       console.log('Error updating password:', updateError)
       return new Response(
-        JSON.stringify({ error: 'Failed to update password: ' + updateError.message }),
+        JSON.stringify({ error: 'Failed to update password' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log('Password updated successfully for user:', targetUserId)
+    console.log('Password updated successfully for user:', targetUserId, 'by:', callerUser.id)
 
     return new Response(
       JSON.stringify({ success: true, message: 'Password updated successfully' }),
