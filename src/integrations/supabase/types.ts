@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_feature_settings: {
+        Row: {
+          enabled: boolean
+          feature_key: string
+          id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          enabled?: boolean
+          feature_key: string
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          enabled?: boolean
+          feature_key?: string
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       bug_reports: {
         Row: {
           created_at: string

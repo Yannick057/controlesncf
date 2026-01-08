@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useSupabaseOnboardControls, useSupabaseStationControls } from '@/hooks/useSupabaseControls';
+import { useAdminFeatures } from '@/hooks/useAdminFeatures';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,10 +14,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { 
   UserCog, Users, RefreshCw, User as UserIcon, 
-  Search, Filter, History, Key, X, BarChart3, Download, FileText, MessageSquare
+  Search, Filter, History, Key, X, BarChart3, Download, FileText, MessageSquare, TrendingUp
 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { TeamNotesPanel } from '@/components/features/TeamNotesPanel';
+import { AgentPerformanceCharts } from '@/components/dashboard/AgentPerformanceCharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -51,6 +54,9 @@ const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', 'hsl(var(--de
 
 export default function Manager() {
   const { user } = useAuth();
+  const { controls: onboardControls } = useSupabaseOnboardControls();
+  const { controls: stationControls } = useSupabaseStationControls();
+  const { settings: featureSettings } = useAdminFeatures();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [roleHistory, setRoleHistory] = useState<RoleHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -436,6 +442,12 @@ export default function Manager() {
             <BarChart3 className="h-4 w-4" />
             Statistiques
           </TabsTrigger>
+          {featureSettings.agent_performance_charts && (
+            <TabsTrigger value="performance" className="gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Performance agents
+            </TabsTrigger>
+          )}
           <TabsTrigger value="history" className="gap-2">
             <History className="h-4 w-4" />
             Historique des rôles
@@ -739,6 +751,16 @@ export default function Manager() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {featureSettings.agent_performance_charts && (
+          <TabsContent value="performance">
+            <AgentPerformanceCharts 
+              onboardControls={onboardControls}
+              stationControls={stationControls}
+              profiles={users.map(u => ({ id: u.id, full_name: u.full_name, email: u.email }))}
+            />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

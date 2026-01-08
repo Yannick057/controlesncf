@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSupabaseOnboardControls, useSupabaseStationControls } from '@/hooks/useSupabaseControls';
 import { useBugReports } from '@/hooks/useBugReports';
 import { useReleaseNotes } from '@/hooks/useReleaseNotes';
+import { useAdminFeatures } from '@/hooks/useAdminFeatures';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,13 +12,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { 
   Shield, Users, RefreshCw, Crown, UserCog, User as UserIcon, 
-  Download, Search, Filter, History, Key, X, Database, Upload, Trash2, Bug, Sparkles, Plus
+  Download, Search, Filter, History, Key, X, Database, Upload, Trash2, Bug, Sparkles, Plus, Settings2
 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 
@@ -56,6 +58,7 @@ export default function Admin() {
   const { controls: stationControls, clearControls: clearStation, setControls: setStation } = useSupabaseStationControls();
   const { reports: bugReports, updateStatus: updateBugStatus, refetch: refetchBugs } = useBugReports();
   const { releaseNotes, addReleaseNote, refetch: refetchReleaseNotes } = useReleaseNotes();
+  const { settings: featureSettings, toggleFeature } = useAdminFeatures();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [roleHistory, setRoleHistory] = useState<RoleHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -384,6 +387,10 @@ export default function Admin() {
           <TabsTrigger value="data" className="gap-2">
             <Database className="h-4 w-4" />
             Gestion des données
+          </TabsTrigger>
+          <TabsTrigger value="features" className="gap-2">
+            <Settings2 className="h-4 w-4" />
+            Fonctionnalités
           </TabsTrigger>
         </TabsList>
 
@@ -792,6 +799,37 @@ export default function Admin() {
                   <Trash2 className="h-4 w-4" />
                   Réinitialiser toutes les données
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="features">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings2 className="h-5 w-5 text-primary" />
+                Fonctionnalités
+              </CardTitle>
+              <CardDescription>
+                Activez ou désactivez les fonctionnalités pour les managers
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div className="space-y-1">
+                  <Label htmlFor="agent-perf" className="text-base font-medium">
+                    Graphiques de performance par agent
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Affiche les statistiques de performance détaillées par agent sur la page Manager
+                  </p>
+                </div>
+                <Switch
+                  id="agent-perf"
+                  checked={featureSettings.agent_performance_charts}
+                  onCheckedChange={(checked) => toggleFeature('agent_performance_charts', checked)}
+                />
               </div>
             </CardContent>
           </Card>

@@ -64,6 +64,60 @@ export function useTeamNotes() {
     fetchNotes();
   }, [fetchNotes]);
 
+  // Real-time subscription for new notes
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel('team-notes-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'team_notes',
+        },
+        async (payload) => {
+          const newNote = payload.new as any;
+          
+          // Only notify if this note is for the current user
+          if (newNote.recipient_id === user.id) {
+            // Fetch author profile
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('full_name, email')
+              .eq('id', newNote.author_id)
+              .single();
+
+            const authorName = profile?.full_name || profile?.email?.split('@')[0] || 'Quelqu\'un';
+            
+            // Show toast notification
+            toast.info(`Nouvelle note de ${authorName}`, {
+              description: newNote.content.substring(0, 50) + (newNote.content.length > 50 ? '...' : ''),
+              duration: 5000,
+            });
+
+            // Show browser notification if permission granted
+            if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
+              new Notification(`📝 Nouvelle note de ${authorName}`, {
+                body: newNote.content.substring(0, 100),
+                icon: '/favicon.ico',
+                tag: 'team-note',
+              });
+            }
+
+            // Refresh notes
+            fetchNotes();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, fetchNotes]);
+
   const addNote = useCallback(async (recipientId: string, content: string) => {
     if (!user?.id) {
       toast.error('Vous devez être connecté');
