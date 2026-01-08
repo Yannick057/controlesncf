@@ -10,6 +10,7 @@ import { Counter } from '@/components/controls/Counter';
 import { TypeToggle, TarifType } from '@/components/controls/TypeToggle';
 import { TarifList } from '@/components/controls/TarifList';
 import { TarifBordList } from '@/components/controls/TarifBordList';
+import { GareSelector } from '@/components/controls/GareSelector';
 import { CitySelect } from '@/components/controls/CitySelect';
 import { useSupabaseStationControls, StationControl, TarifItem, TarifBordItem, TarifBordType } from '@/hooks/useSupabaseControls';
 import { exportToHTML, exportToPDF } from '@/utils/exportControls';
@@ -275,11 +276,11 @@ export default function StationControls() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="stationName">Gare *</Label>
-                    <CitySelect
+                    <GareSelector
                       id="stationName"
                       value={stationName}
                       onChange={setStationName}
-                      placeholder="Sélectionner la gare"
+                      placeholder="Rechercher une gare..."
                     />
                   </div>
                   <div className="space-y-2">
