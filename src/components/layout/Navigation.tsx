@@ -3,6 +3,7 @@ import { LayoutDashboard, Train, Building2, Settings, History, Shield, UserCog }
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface NavItem {
   id: string;
@@ -107,25 +108,33 @@ export function MobileNavigation() {
     navItems.push(managerNavItem);
   }
 
+  // Dynamic grid columns based on number of items
+  const gridCols = navItems.length <= 5 ? 'grid-cols-5' : navItems.length === 6 ? 'grid-cols-6' : 'grid-cols-7';
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 md:hidden">
-      <div className={cn("grid gap-1 p-2", navItems.length === 6 ? "grid-cols-6" : "grid-cols-5")}>
+      <div className={cn("grid gap-0.5 p-1.5", gridCols)}>
         {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) =>
-              cn(
-                'flex flex-col items-center gap-1 rounded-lg py-2 text-xs font-medium transition-all duration-200',
-                isActive
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
-              )
-            }
-          >
-            <item.icon className="h-5 w-5" />
-            <span>{item.label}</span>
-          </NavLink>
+          <Tooltip key={item.to}>
+            <TooltipTrigger asChild>
+              <NavLink
+                to={item.to}
+                className={({ isActive }) =>
+                  cn(
+                    'flex flex-col items-center justify-center rounded-lg p-2 text-xs font-medium transition-all duration-200',
+                    isActive
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                  )
+                }
+              >
+                <item.icon className="h-5 w-5" />
+              </NavLink>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">
+              {item.label}
+            </TooltipContent>
+          </Tooltip>
         ))}
       </div>
     </nav>
