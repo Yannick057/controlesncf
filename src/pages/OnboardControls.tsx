@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { Plus, Train, AlertTriangle, FileText, User, Download, Ticket, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,44 +13,75 @@ import { TarifBordList } from '@/components/controls/TarifBordList';
 import { CitySelect } from '@/components/controls/CitySelect';
 import { ExportFilterDialog } from '@/components/controls/ExportFilterDialog';
 import { useSupabaseOnboardControls, OnboardControl, TarifItem, TarifBordItem, TarifBordType } from '@/hooks/useSupabaseControls';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
+interface OnboardFormValues {
+  trainNumber: string;
+  origin: string;
+  destination: string;
+  date: string;
+  time: string;
+  passengers: string;
+  tarifsBord: TarifBordItem[];
+  tarifBordMontant: string;
+  tarifBordDescription: string;
+  tarifBordType: TarifBordType;
+  tarifsControle: TarifItem[];
+  tarifControleType: 'STT' | 'RNV' | 'Titre tiers' | 'D. naissance' | 'Autre';
+  tarifControleMontant: string;
+  stt50Count: number;
+  pvList: TarifItem[];
+  pvType: 'STT' | 'RNV' | 'Titre tiers' | 'D. naissance' | 'Autre';
+  pvMontant: string;
+  stt100Count: number;
+  riPositif: number;
+  riNegatif: number;
+  commentaire: string;
+}
+
+const getDefaultFormValues = (): OnboardFormValues => ({
+  trainNumber: '',
+  origin: '',
+  destination: '',
+  date: new Date().toISOString().split('T')[0],
+  time: new Date().toTimeString().slice(0, 5),
+  passengers: '',
+  tarifsBord: [],
+  tarifBordMontant: '',
+  tarifBordDescription: '',
+  tarifBordType: 'bord',
+  tarifsControle: [],
+  tarifControleType: 'STT',
+  tarifControleMontant: '',
+  stt50Count: 0,
+  pvList: [],
+  pvType: 'STT',
+  pvMontant: '',
+  stt100Count: 0,
+  riPositif: 0,
+  riNegatif: 0,
+  commentaire: '',
+});
+
 export default function OnboardControls() {
   const { controls, loading, addControl } = useSupabaseOnboardControls();
-  const today = new Date().toISOString().split('T')[0];
-  const now = new Date().toTimeString().slice(0, 5);
+  
+  // Use form persistence hook to save form data when changing tabs
+  const { values: formValues, updateField, updateFields, clearPersistedData, isDirty } = useFormPersistence<OnboardFormValues>({
+    key: 'onboard_control_form',
+    defaultValues: getDefaultFormValues(),
+  });
 
-  // Basic info
-  const [trainNumber, setTrainNumber] = useState('');
-  const [origin, setOrigin] = useState('');
-  const [destination, setDestination] = useState('');
-  const [date, setDate] = useState(today);
-  const [time, setTime] = useState(now);
-  const [passengers, setPassengers] = useState('');
-
-  // Tarif à bord / exceptionnel (ne compte pas pour la fraude)
-  const [tarifBordMontant, setTarifBordMontant] = useState('');
-  const [tarifBordDescription, setTarifBordDescription] = useState('');
-  const [tarifBordType, setTarifBordType] = useState<TarifBordType>('bord');
-  const [tarifsBord, setTarifsBord] = useState<TarifBordItem[]>([]);
-
-  // Tarif contrôle
-  const [tarifControleType, setTarifControleType] = useState<TarifType>('STT');
-  const [tarifControleMontant, setTarifControleMontant] = useState('');
-  const [tarifsControle, setTarifsControle] = useState<TarifItem[]>([]);
-  const [stt50Count, setStt50Count] = useState(0);
-
-  // PV
-  const [pvType, setPvType] = useState<TarifType>('STT');
-  const [pvMontant, setPvMontant] = useState('');
-  const [pvList, setPvList] = useState<TarifItem[]>([]);
-  const [stt100Count, setStt100Count] = useState(0);
-
-  // RI
-  const [riPositif, setRiPositif] = useState(0);
-  const [riNegatif, setRiNegatif] = useState(0);
-  const [commentaire, setCommentaire] = useState('');
+  // Destructure for easier access
+  const {
+    trainNumber, origin, destination, date, time, passengers,
+    tarifsBord, tarifBordMontant, tarifBordDescription, tarifBordType,
+    tarifsControle, tarifControleType, tarifControleMontant, stt50Count,
+    pvList, pvType, pvMontant, stt100Count,
+    riPositif, riNegatif, commentaire
+  } = formValues;
 
   // Calculated values
   const totalTarifsBord = tarifsBord.reduce((sum, t) => sum + t.montant, 0);
@@ -67,18 +98,17 @@ export default function OnboardControls() {
       toast.error('Montant invalide');
       return;
     }
-    setTarifsBord([...tarifsBord, { 
+    updateField('tarifsBord', [...tarifsBord, { 
       id: Date.now(), 
       montant, 
       description: tarifBordDescription || undefined,
       tarifType: tarifBordType
     }]);
-    setTarifBordMontant('');
-    setTarifBordDescription('');
+    updateFields({ tarifBordMontant: '', tarifBordDescription: '' });
   };
 
   const removeTarifBord = (id: number) => {
-    setTarifsBord(tarifsBord.filter((t) => t.id !== id));
+    updateField('tarifsBord', tarifsBord.filter((t) => t.id !== id));
   };
 
   const addTarifControle = () => {
@@ -87,12 +117,12 @@ export default function OnboardControls() {
       toast.error('Montant invalide');
       return;
     }
-    setTarifsControle([...tarifsControle, { id: Date.now(), type: tarifControleType, montant }]);
-    setTarifControleMontant('');
+    updateField('tarifsControle', [...tarifsControle, { id: Date.now(), type: tarifControleType, montant }]);
+    updateField('tarifControleMontant', '');
   };
 
   const removeTarifControle = (id: number) => {
-    setTarifsControle(tarifsControle.filter((t) => t.id !== id));
+    updateField('tarifsControle', tarifsControle.filter((t) => t.id !== id));
   };
 
   const addPv = () => {
@@ -101,31 +131,16 @@ export default function OnboardControls() {
       toast.error('Montant invalide');
       return;
     }
-    setPvList([...pvList, { id: Date.now(), type: pvType, montant }]);
-    setPvMontant('');
+    updateField('pvList', [...pvList, { id: Date.now(), type: pvType, montant }]);
+    updateField('pvMontant', '');
   };
 
   const removePv = (id: number) => {
-    setPvList(pvList.filter((t) => t.id !== id));
+    updateField('pvList', pvList.filter((t) => t.id !== id));
   };
 
   const resetForm = () => {
-    setTrainNumber('');
-    setOrigin('');
-    setDestination('');
-    setDate(today);
-    setTime(new Date().toTimeString().slice(0, 5));
-    setPassengers('');
-    setTarifsBord([]);
-    setTarifBordMontant('');
-    setTarifBordDescription('');
-    setTarifsControle([]);
-    setStt50Count(0);
-    setPvList([]);
-    setStt100Count(0);
-    setRiPositif(0);
-    setRiNegatif(0);
-    setCommentaire('');
+    clearPersistedData();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -248,7 +263,7 @@ export default function OnboardControls() {
                       id="trainNumber"
                       placeholder="TGV 8541"
                       value={trainNumber}
-                      onChange={(e) => setTrainNumber(e.target.value)}
+                      onChange={(e) => updateField('trainNumber', e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
@@ -256,7 +271,7 @@ export default function OnboardControls() {
                     <CitySelect
                       id="origin"
                       value={origin}
-                      onChange={setOrigin}
+                      onChange={(v) => updateField('origin', v)}
                       placeholder="Ville de départ"
                     />
                   </div>
@@ -265,7 +280,7 @@ export default function OnboardControls() {
                     <CitySelect
                       id="destination"
                       value={destination}
-                      onChange={setDestination}
+                      onChange={(v) => updateField('destination', v)}
                       placeholder="Ville d'arrivée"
                     />
                   </div>
@@ -273,11 +288,11 @@ export default function OnboardControls() {
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div className="space-y-2">
                     <Label htmlFor="date">Date</Label>
-                    <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                    <Input id="date" type="date" value={date} onChange={(e) => updateField('date', e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="time">Heure</Label>
-                    <Input id="time" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+                    <Input id="time" type="time" value={time} onChange={(e) => updateField('time', e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="passengers">Passagers *</Label>
@@ -287,7 +302,7 @@ export default function OnboardControls() {
                       min="0"
                       placeholder="150"
                       value={passengers}
-                      onChange={(e) => setPassengers(e.target.value)}
+                      onChange={(e) => updateField('passengers', e.target.value)}
                     />
                   </div>
                 </div>
@@ -307,7 +322,7 @@ export default function OnboardControls() {
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => setTarifBordType('bord')}
+                    onClick={() => updateField('tarifBordType', 'bord')}
                     className={cn(
                       'rounded-lg px-4 py-2 text-sm font-medium transition-all',
                       tarifBordType === 'bord'
@@ -319,7 +334,7 @@ export default function OnboardControls() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setTarifBordType('exceptionnel')}
+                    onClick={() => updateField('tarifBordType', 'exceptionnel')}
                     className={cn(
                       'rounded-lg px-4 py-2 text-sm font-medium transition-all',
                       tarifBordType === 'exceptionnel'
@@ -337,7 +352,7 @@ export default function OnboardControls() {
                     step="0.01"
                     placeholder="Montant (€)"
                     value={tarifBordMontant}
-                    onChange={(e) => setTarifBordMontant(e.target.value)}
+                    onChange={(e) => updateField('tarifBordMontant', e.target.value)}
                     className="flex-1"
                   />
                   <Button type="button" onClick={addTarifBord} variant="secondary">
@@ -359,7 +374,7 @@ export default function OnboardControls() {
               <CardContent className="space-y-4">
                 <div className="space-y-3">
                   <Label>Type</Label>
-                  <TypeToggle value={tarifControleType} onChange={setTarifControleType} />
+                  <TypeToggle value={tarifControleType} onChange={(v) => updateField('tarifControleType', v)} />
                 </div>
                 <div className="flex gap-2">
                   <Input
@@ -368,7 +383,7 @@ export default function OnboardControls() {
                     step="0.01"
                     placeholder="Montant (€)"
                     value={tarifControleMontant}
-                    onChange={(e) => setTarifControleMontant(e.target.value)}
+                    onChange={(e) => updateField('tarifControleMontant', e.target.value)}
                     className="flex-1"
                   />
                   <Button type="button" onClick={addTarifControle} variant="secondary">
@@ -379,7 +394,7 @@ export default function OnboardControls() {
                 <Counter
                   label="STT 50"
                   value={stt50Count}
-                  onChange={setStt50Count}
+                  onChange={(v) => updateField('stt50Count', v)}
                   variant="primary"
                   showTotal={{ perUnit: 50, label: 'Total' }}
                 />
@@ -397,7 +412,7 @@ export default function OnboardControls() {
               <CardContent className="space-y-4">
                 <div className="space-y-3">
                   <Label>Type</Label>
-                  <TypeToggle value={pvType} onChange={setPvType} />
+                  <TypeToggle value={pvType} onChange={(v) => updateField('pvType', v)} />
                 </div>
                 <div className="flex gap-2">
                   <Input
@@ -406,7 +421,7 @@ export default function OnboardControls() {
                     step="0.01"
                     placeholder="Montant (€)"
                     value={pvMontant}
-                    onChange={(e) => setPvMontant(e.target.value)}
+                    onChange={(e) => updateField('pvMontant', e.target.value)}
                     className="flex-1"
                   />
                   <Button type="button" onClick={addPv} variant="secondary">
@@ -417,7 +432,7 @@ export default function OnboardControls() {
                 <Counter
                   label="STT 100"
                   value={stt100Count}
-                  onChange={setStt100Count}
+                  onChange={(v) => updateField('stt100Count', v)}
                   variant="destructive"
                   showTotal={{ perUnit: 100, label: 'Total' }}
                 />
@@ -434,8 +449,8 @@ export default function OnboardControls() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Counter label="RI positif" value={riPositif} onChange={setRiPositif} variant="success" />
-                  <Counter label="RI négatif" value={riNegatif} onChange={setRiNegatif} variant="destructive" />
+                  <Counter label="RI positif" value={riPositif} onChange={(v) => updateField('riPositif', v)} variant="success" />
+                  <Counter label="RI négatif" value={riNegatif} onChange={(v) => updateField('riNegatif', v)} variant="destructive" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="commentaire">Commentaire</Label>
@@ -443,7 +458,7 @@ export default function OnboardControls() {
                     id="commentaire"
                     placeholder="Notes supplémentaires..."
                     value={commentaire}
-                    onChange={(e) => setCommentaire(e.target.value)}
+                    onChange={(e) => updateField('commentaire', e.target.value)}
                     rows={3}
                   />
                 </div>

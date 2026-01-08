@@ -2,6 +2,118 @@
 
 Ce guide vous permet de recréer le projet Supabase à l'identique.
 
+## Script SQL Unique (Copier-Coller)
+
+**Copiez ce script complet dans SQL Editor de Supabase pour tout configurer en une fois :**
+
+```sql
+-- ==========================================
+-- SCRIPT COMPLET SUPABASE - CONTROLES SNCF
+-- ==========================================
+
+-- 1. Types et énumérations
+CREATE TYPE public.app_role AS ENUM ('admin', 'manager', 'agent');
+
+-- 2. Tables
+CREATE TABLE public.profiles (id UUID NOT NULL PRIMARY KEY, full_name TEXT, email TEXT, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now());
+CREATE TABLE public.user_roles (id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY, user_id UUID NOT NULL UNIQUE, role public.app_role NOT NULL DEFAULT 'agent', created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now());
+CREATE TABLE public.notification_settings (id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY, user_id UUID NOT NULL UNIQUE, fraud_threshold NUMERIC NOT NULL DEFAULT 5.0, notifications_enabled BOOLEAN NOT NULL DEFAULT true, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now());
+CREATE TABLE public.user_preferences (id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY, user_id UUID NOT NULL UNIQUE, default_page TEXT NOT NULL DEFAULT '/', page_order JSONB NOT NULL DEFAULT '["dashboard", "onboard", "station", "history", "settings"]', created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now());
+CREATE TABLE public.onboard_controls (id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY, user_id UUID NOT NULL, control_date DATE NOT NULL, control_time TIME NOT NULL, train_number TEXT NOT NULL, origin TEXT NOT NULL, destination TEXT NOT NULL, passengers INTEGER NOT NULL DEFAULT 0, tarifs_controle JSONB NOT NULL DEFAULT '[]', tarifs_bord JSONB NOT NULL DEFAULT '[]', stt50_count INTEGER NOT NULL DEFAULT 0, stt100_count INTEGER NOT NULL DEFAULT 0, pv_list JSONB NOT NULL DEFAULT '[]', ri_positif INTEGER NOT NULL DEFAULT 0, ri_negatif INTEGER NOT NULL DEFAULT 0, fraud_count INTEGER NOT NULL DEFAULT 0, fraud_rate NUMERIC NOT NULL DEFAULT 0, commentaire TEXT DEFAULT '', created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now());
+CREATE TABLE public.station_controls (id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY, user_id UUID NOT NULL, control_date DATE NOT NULL, control_time TIME NOT NULL, station_name TEXT NOT NULL, platform TEXT NOT NULL, origin TEXT NOT NULL, destination TEXT NOT NULL, passengers INTEGER NOT NULL DEFAULT 0, tarifs_controle JSONB NOT NULL DEFAULT '[]', tarifs_bord JSONB NOT NULL DEFAULT '[]', stt50_count INTEGER NOT NULL DEFAULT 0, stt100_count INTEGER NOT NULL DEFAULT 0, pv_list JSONB NOT NULL DEFAULT '[]', ri_positif INTEGER NOT NULL DEFAULT 0, ri_negatif INTEGER NOT NULL DEFAULT 0, fraud_count INTEGER NOT NULL DEFAULT 0, fraud_rate NUMERIC NOT NULL DEFAULT 0, commentaire TEXT DEFAULT '', created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now());
+CREATE TABLE public.bug_reports (id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY, user_id UUID NOT NULL, title TEXT NOT NULL, description TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open', priority TEXT NOT NULL DEFAULT 'medium', created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now());
+CREATE TABLE public.release_notes (id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY, version TEXT NOT NULL, title TEXT NOT NULL, content TEXT NOT NULL, release_date DATE NOT NULL DEFAULT CURRENT_DATE, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now());
+CREATE TABLE public.reports (id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY, user_id UUID NOT NULL, type TEXT NOT NULL, nom_gare TEXT NOT NULL, voie TEXT, description TEXT, statut TEXT NOT NULL DEFAULT 'actif', created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now());
+CREATE TABLE public.team_notes (id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY, author_id UUID NOT NULL, recipient_id UUID NOT NULL, content TEXT NOT NULL, is_read BOOLEAN NOT NULL DEFAULT false, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now());
+CREATE TABLE public.role_history (id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY, user_id UUID NOT NULL, old_role public.app_role, new_role public.app_role NOT NULL, changed_by UUID NOT NULL, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now());
+CREATE TABLE public.admin_feature_settings (id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY, feature_key TEXT NOT NULL UNIQUE, enabled BOOLEAN NOT NULL DEFAULT true, updated_by UUID, updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now());
+
+-- 3. Fonctions
+CREATE OR REPLACE FUNCTION public.has_role(_user_id UUID, _role public.app_role) RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = 'public' AS $$ SELECT EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = _user_id AND role = _role) $$;
+CREATE OR REPLACE FUNCTION public.get_user_role(_user_id UUID) RETURNS public.app_role LANGUAGE sql STABLE SECURITY DEFINER SET search_path = 'public' AS $$ SELECT role FROM public.user_roles WHERE user_id = _user_id LIMIT 1 $$;
+CREATE OR REPLACE FUNCTION public.update_updated_at_column() RETURNS TRIGGER LANGUAGE plpgsql SET search_path = 'public' AS $$ BEGIN NEW.updated_at = now(); RETURN NEW; END; $$;
+CREATE OR REPLACE FUNCTION public.handle_new_user() RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = 'public' AS $$ BEGIN INSERT INTO public.profiles (id, email, full_name) VALUES (NEW.id, NEW.email, NEW.raw_user_meta_data ->> 'full_name'); INSERT INTO public.user_roles (user_id, role) VALUES (NEW.id, 'agent'); INSERT INTO public.notification_settings (user_id) VALUES (NEW.id); RETURN NEW; END; $$;
+
+-- 4. Triggers
+CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_notification_settings_updated_at BEFORE UPDATE ON public.notification_settings FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_user_preferences_updated_at BEFORE UPDATE ON public.user_preferences FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_onboard_controls_updated_at BEFORE UPDATE ON public.onboard_controls FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_station_controls_updated_at BEFORE UPDATE ON public.station_controls FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_bug_reports_updated_at BEFORE UPDATE ON public.bug_reports FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_team_notes_updated_at BEFORE UPDATE ON public.team_notes FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_admin_feature_settings_updated_at BEFORE UPDATE ON public.admin_feature_settings FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 5. Activer RLS
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notification_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_preferences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.onboard_controls ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.station_controls ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bug_reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.release_notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.team_notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.role_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_feature_settings ENABLE ROW LEVEL SECURITY;
+
+-- 6. Policies (toutes les tables)
+CREATE POLICY "Users can view all profiles" ON public.profiles FOR SELECT USING (true);
+CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Users can view their own role" ON public.user_roles FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Admins can view all roles" ON public.user_roles FOR SELECT USING (public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Admins can insert roles" ON public.user_roles FOR INSERT WITH CHECK (public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Admins can update roles" ON public.user_roles FOR UPDATE USING (public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Admins can delete roles" ON public.user_roles FOR DELETE USING (public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Users can view own notification settings" ON public.notification_settings FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own notification settings" ON public.notification_settings FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own notification settings" ON public.notification_settings FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can view own preferences" ON public.user_preferences FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own preferences" ON public.user_preferences FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own preferences" ON public.user_preferences FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can view own onboard controls" ON public.onboard_controls FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Managers can view all onboard controls" ON public.onboard_controls FOR SELECT USING (public.has_role(auth.uid(), 'manager') OR public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Users can insert own onboard controls" ON public.onboard_controls FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own onboard controls" ON public.onboard_controls FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own onboard controls" ON public.onboard_controls FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Users can view own station controls" ON public.station_controls FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Managers can view all station controls" ON public.station_controls FOR SELECT USING (public.has_role(auth.uid(), 'manager') OR public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Users can insert own station controls" ON public.station_controls FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own station controls" ON public.station_controls FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own station controls" ON public.station_controls FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Users can view own bug reports" ON public.bug_reports FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Admins can view all bug reports" ON public.bug_reports FOR SELECT USING (public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Users can insert bug reports" ON public.bug_reports FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own bug reports" ON public.bug_reports FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Admins can update any bug report" ON public.bug_reports FOR UPDATE USING (public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Anyone can view release notes" ON public.release_notes FOR SELECT USING (true);
+CREATE POLICY "Admins can insert release notes" ON public.release_notes FOR INSERT WITH CHECK (public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Admins can update release notes" ON public.release_notes FOR UPDATE USING (public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Admins can delete release notes" ON public.release_notes FOR DELETE USING (public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Anyone can view reports" ON public.reports FOR SELECT USING (true);
+CREATE POLICY "Authenticated users can create reports" ON public.reports FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own reports" ON public.reports FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own reports" ON public.reports FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Users can view notes they sent or received" ON public.team_notes FOR SELECT USING ((auth.uid() = author_id) OR (auth.uid() = recipient_id));
+CREATE POLICY "Managers/Admins can view all notes" ON public.team_notes FOR SELECT USING (public.has_role(auth.uid(), 'manager') OR public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Users can insert notes" ON public.team_notes FOR INSERT WITH CHECK (auth.uid() = author_id);
+CREATE POLICY "Users can update their own notes" ON public.team_notes FOR UPDATE USING (auth.uid() = author_id);
+CREATE POLICY "Recipients can mark notes as read" ON public.team_notes FOR UPDATE USING (auth.uid() = recipient_id);
+CREATE POLICY "Users can delete their own notes" ON public.team_notes FOR DELETE USING (auth.uid() = author_id);
+CREATE POLICY "Admins can view all role history" ON public.role_history FOR SELECT USING (public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Managers can view role history for non-admins" ON public.role_history FOR SELECT USING (public.has_role(auth.uid(), 'manager') AND old_role <> 'admin' AND new_role <> 'admin');
+CREATE POLICY "Admins can insert role history" ON public.role_history FOR INSERT WITH CHECK (public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Managers can insert role history" ON public.role_history FOR INSERT WITH CHECK (public.has_role(auth.uid(), 'manager') AND new_role <> 'admin');
+CREATE POLICY "Everyone can read feature settings" ON public.admin_feature_settings FOR SELECT USING (true);
+CREATE POLICY "Admins can insert feature settings" ON public.admin_feature_settings FOR INSERT WITH CHECK (public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Admins can update feature settings" ON public.admin_feature_settings FOR UPDATE USING (public.has_role(auth.uid(), 'admin'));
+```
+
+---
+
 ## Table des matières
 1. [Prérequis](#prérequis)
 2. [Création du projet Supabase](#création-du-projet-supabase)
