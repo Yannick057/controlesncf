@@ -4,6 +4,7 @@ import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useTeamNotes } from '@/hooks/useTeamNotes';
 
 interface NavItem {
   id: string;
@@ -81,6 +82,7 @@ export function Navigation() {
 
 export function MobileNavigation() {
   const { user } = useAuth();
+  const { unreadCount } = useTeamNotes();
   const [pageOrder, setPageOrder] = useState<string[]>(['dashboard', 'onboard', 'station', 'history', 'settings']);
 
   useEffect(() => {
@@ -121,7 +123,7 @@ export function MobileNavigation() {
                 to={item.to}
                 className={({ isActive }) =>
                   cn(
-                    'flex flex-col items-center justify-center rounded-lg p-2 text-xs font-medium transition-all duration-200',
+                    'relative flex flex-col items-center justify-center rounded-lg p-2 text-xs font-medium transition-all duration-200',
                     isActive
                       ? 'bg-primary/10 text-primary'
                       : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
@@ -129,10 +131,17 @@ export function MobileNavigation() {
                 }
               >
                 <item.icon className="h-5 w-5" />
+                {/* Badge pour les notes non lues sur l'icône Équipe */}
+                {item.id === 'manager' && unreadCount > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
               </NavLink>
             </TooltipTrigger>
             <TooltipContent side="top" className="text-xs">
               {item.label}
+              {item.id === 'manager' && unreadCount > 0 && ` (${unreadCount} non lue${unreadCount > 1 ? 's' : ''})`}
             </TooltipContent>
           </Tooltip>
         ))}
