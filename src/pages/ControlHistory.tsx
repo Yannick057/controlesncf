@@ -1,12 +1,12 @@
 import { useState, useMemo } from 'react';
-import { Train, Building2, Calendar, Filter, Download, Search, Edit, Trash2, ChevronDown, ChevronUp, Mail, X, Plus } from 'lucide-react';
+import { Train, Building2, Calendar, Filter, Download, Search, Edit, Trash2, ChevronDown, ChevronUp, Mail, X, Plus, Eye, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useOnboardControls, useStationControls, OnboardControl, StationControl, TarifItem, TarifBordItem, TarifBordType } from '@/hooks/useControls';
+import { useSupabaseOnboardControls, useSupabaseStationControls, OnboardControl, StationControl, TarifItem, TarifBordItem, TarifBordType } from '@/hooks/useSupabaseControls';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -15,6 +15,7 @@ import { TarifList } from '@/components/controls/TarifList';
 import { TarifBordList } from '@/components/controls/TarifBordList';
 import { Counter } from '@/components/controls/Counter';
 import { TypeToggle, TarifType } from '@/components/controls/TypeToggle';
+import { ControlDetailDialog } from '@/components/controls/ControlDetailDialog';
 
 type SortBy = 'date' | 'train' | 'fraudRate';
 type SortOrder = 'asc' | 'desc';
@@ -47,8 +48,13 @@ function formatTarifDetail(items: TarifItem[], sttCount: number, sttAmount: numb
 }
 
 export default function ControlHistory() {
-  const { controls: onboardControls, deleteControl: deleteOnboard, updateControl: updateOnboard } = useOnboardControls();
-  const { controls: stationControls, deleteControl: deleteStation, updateControl: updateStation } = useStationControls();
+  const { controls: onboardControls, loading: loadingOnboard, deleteControl: deleteOnboard } = useSupabaseOnboardControls();
+  const { controls: stationControls, loading: loadingStation, deleteControl: deleteStation } = useSupabaseStationControls();
+  
+  // Selected control for detail popup
+  const [selectedControl, setSelectedControl] = useState<(OnboardControl & { _type: 'onboard' }) | (StationControl & { _type: 'station' }) | null>(null);
+  
+  const loading = loadingOnboard || loadingStation;
   
   const [sortBy, setSortBy] = useState<SortBy>('date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -200,14 +206,13 @@ export default function ControlHistory() {
     setSelectedIds(newSet);
   };
 
-  const handleDelete = (type: 'onboard' | 'station', id: number) => {
+  const handleDelete = async (type: 'onboard' | 'station', id: string) => {
     if (confirm('Supprimer ce contrôle ?')) {
       if (type === 'onboard') {
-        deleteOnboard(id);
+        await deleteOnboard(id);
       } else {
-        deleteStation(id);
+        await deleteStation(id);
       }
-      toast.success('Contrôle supprimé');
     }
   };
 
@@ -237,50 +242,8 @@ export default function ControlHistory() {
   };
 
   const saveEdit = () => {
-    if (!editingControl || !editForm) return;
-
-    const fraudCount = editForm.tarifsControle.length + editForm.stt50Count + editForm.pvList.length + editForm.stt100Count;
-
-    if (editingControl._type === 'onboard') {
-      updateOnboard(editingControl.id, {
-        trainNumber: editingControl.trainNumber,
-        origin: editingControl.origin,
-        destination: editingControl.destination,
-        date: editingControl.date,
-        time: editingControl.time,
-        passengers: editForm.passengers,
-        tarifsBord: editForm.tarifsBord,
-        tarifsControle: editForm.tarifsControle,
-        stt50Count: editForm.stt50Count,
-        pvList: editForm.pvList,
-        stt100Count: editForm.stt100Count,
-        riPositif: editForm.riPositif,
-        riNegatif: editForm.riNegatif,
-        commentaire: editForm.commentaire,
-        fraudCount,
-      });
-    } else {
-      updateStation(editingControl.id, {
-        stationName: editingControl.stationName,
-        platform: editingControl.platform,
-        origin: editingControl.origin,
-        destination: editingControl.destination,
-        date: editingControl.date,
-        time: editingControl.time,
-        passengers: editForm.passengers,
-        tarifsBord: editForm.tarifsBord,
-        tarifsControle: editForm.tarifsControle,
-        stt50Count: editForm.stt50Count,
-        pvList: editForm.pvList,
-        stt100Count: editForm.stt100Count,
-        riPositif: editForm.riPositif,
-        riNegatif: editForm.riNegatif,
-        commentaire: editForm.commentaire,
-        fraudCount,
-      });
-    }
-
-    toast.success('Contrôle modifié');
+    // L'édition n'est pas supportée directement - fermer le dialog
+    toast.info('L\'édition sera disponible dans une prochaine version');
     setEditingControl(null);
     setEditForm(null);
   };
@@ -510,9 +473,10 @@ export default function ControlHistory() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => startEdit(control)}
+                          onClick={() => setSelectedControl(control)}
+                          title="Voir le détail"
                         >
-                          <Edit className="h-4 w-4 text-primary" />
+                          <Eye className="h-4 w-4 text-primary" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -590,13 +554,29 @@ export default function ControlHistory() {
         </Card>
       ))}
 
-      {combinedControls.length === 0 && (
+      {combinedControls.length === 0 && !loading && (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             Aucun contrôle trouvé
           </CardContent>
         </Card>
       )}
+
+      {loading && (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+            Chargement...
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Detail Popup */}
+      <ControlDetailDialog
+        control={selectedControl}
+        open={!!selectedControl}
+        onOpenChange={(open) => !open && setSelectedControl(null)}
+      />
 
       {/* Export Dialog */}
       <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
