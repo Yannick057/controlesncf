@@ -2,6 +2,17 @@ import { Plus, Building2, AlertTriangle, FileText, User, Download, Ticket, Loade
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -554,18 +565,37 @@ export default function StationControls() {
                     Enregistrer le contrôle
                   </Button>
                   {isDirty && (
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      size="lg"
-                      onClick={() => {
-                        clearPersistedData();
-                        toast.success('Brouillon effacé');
-                      }}
-                      title="Effacer le brouillon"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="lg"
+                          title="Effacer le brouillon"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Effacer le brouillon ?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Cette action va supprimer toutes les données saisies dans le formulaire. Cette action est irréversible.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Annuler</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => {
+                              clearPersistedData();
+                              toast.success('Brouillon effacé');
+                            }}
+                          >
+                            Effacer
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   )}
                 </div>
               </CardContent>
