@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import { Plus, Building2, AlertTriangle, FileText, User, Download, Ticket, Loader2 } from 'lucide-react';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,153 +17,162 @@ import { useSupabaseStationControls, StationControl, TarifItem, TarifBordItem, T
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
+interface StationFormData {
+  stationName: string;
+  platform: string;
+  origin: string;
+  destination: string;
+  date: string;
+  time: string;
+  passengers: string;
+  tarifBordMontant: string;
+  tarifBordDescription: string;
+  tarifBordType: TarifBordType;
+  tarifsBord: TarifBordItem[];
+  tarifControleType: TarifType;
+  tarifControleMontant: string;
+  tarifsControle: TarifItem[];
+  stt50Count: number;
+  pvType: TarifType;
+  pvMontant: string;
+  pvList: TarifItem[];
+  stt100Count: number;
+  riPositif: number;
+  riNegatif: number;
+  commentaire: string;
+}
+
 export default function StationControls() {
   const { controls, loading, addControl } = useSupabaseStationControls();
   const today = new Date().toISOString().split('T')[0];
   const now = new Date().toTimeString().slice(0, 5);
 
-  // Basic info
-  const [stationName, setStationName] = useState('');
-  const [platform, setPlatform] = useState('');
-  const [origin, setOrigin] = useState('');
-  const [destination, setDestination] = useState('');
-  const [date, setDate] = useState(today);
-  const [time, setTime] = useState(now);
-  const [passengers, setPassengers] = useState('');
+  const defaultFormValues: StationFormData = {
+    stationName: '',
+    platform: '',
+    origin: '',
+    destination: '',
+    date: today,
+    time: now,
+    passengers: '',
+    tarifBordMontant: '',
+    tarifBordDescription: '',
+    tarifBordType: 'bord',
+    tarifsBord: [],
+    tarifControleType: 'STT',
+    tarifControleMontant: '',
+    tarifsControle: [],
+    stt50Count: 0,
+    pvType: 'STT',
+    pvMontant: '',
+    pvList: [],
+    stt100Count: 0,
+    riPositif: 0,
+    riNegatif: 0,
+    commentaire: '',
+  };
 
-  // Tarif à bord / exceptionnel (ne compte pas pour la fraude)
-  const [tarifBordMontant, setTarifBordMontant] = useState('');
-  const [tarifBordDescription, setTarifBordDescription] = useState('');
-  const [tarifBordType, setTarifBordType] = useState<TarifBordType>('bord');
-  const [tarifsBord, setTarifsBord] = useState<TarifBordItem[]>([]);
-
-  // Tarif contrôle
-  const [tarifControleType, setTarifControleType] = useState<TarifType>('STT');
-  const [tarifControleMontant, setTarifControleMontant] = useState('');
-  const [tarifsControle, setTarifsControle] = useState<TarifItem[]>([]);
-  const [stt50Count, setStt50Count] = useState(0);
-
-  // PV
-  const [pvType, setPvType] = useState<TarifType>('STT');
-  const [pvMontant, setPvMontant] = useState('');
-  const [pvList, setPvList] = useState<TarifItem[]>([]);
-  const [stt100Count, setStt100Count] = useState(0);
-
-  // RI
-  const [riPositif, setRiPositif] = useState(0);
-  const [riNegatif, setRiNegatif] = useState(0);
-  const [commentaire, setCommentaire] = useState('');
+  const { values, updateField, updateFields, clearPersistedData } = useFormPersistence<StationFormData>({
+    key: 'station_control',
+    defaultValues: defaultFormValues,
+  });
 
   // Calculated values
-  const totalTarifsBord = tarifsBord.reduce((sum, t) => sum + t.montant, 0);
-  const totalTarifsControle = tarifsControle.reduce((sum, t) => sum + t.montant, 0) + (stt50Count * 50);
-  const totalPV = pvList.reduce((sum, t) => sum + t.montant, 0) + (stt100Count * 100);
-  // Tarif à bord ne compte PAS pour la fraude
-  const fraudCount = tarifsControle.length + pvList.length + stt50Count + stt100Count;
-  const passengersNum = parseInt(passengers) || 0;
+  const totalTarifsBord = values.tarifsBord.reduce((sum, t) => sum + t.montant, 0);
+  const totalTarifsControle = values.tarifsControle.reduce((sum, t) => sum + t.montant, 0) + (values.stt50Count * 50);
+  const totalPV = values.pvList.reduce((sum, t) => sum + t.montant, 0) + (values.stt100Count * 100);
+  const fraudCount = values.tarifsControle.length + values.pvList.length + values.stt50Count + values.stt100Count;
+  const passengersNum = parseInt(values.passengers) || 0;
   const fraudRate = passengersNum > 0 ? (fraudCount / passengersNum) * 100 : 0;
 
   const addTarifBord = () => {
-    const montant = parseFloat(tarifBordMontant);
+    const montant = parseFloat(values.tarifBordMontant);
     if (!montant || montant <= 0) {
       toast.error('Montant invalide');
       return;
     }
-    setTarifsBord([...tarifsBord, { 
-      id: Date.now(), 
-      montant, 
-      description: tarifBordDescription || undefined,
-      tarifType: tarifBordType
-    }]);
-    setTarifBordMontant('');
-    setTarifBordDescription('');
+    updateFields({
+      tarifsBord: [...values.tarifsBord, { 
+        id: Date.now(), 
+        montant, 
+        description: values.tarifBordDescription || undefined,
+        tarifType: values.tarifBordType
+      }],
+      tarifBordMontant: '',
+      tarifBordDescription: '',
+    });
   };
 
   const removeTarifBord = (id: number) => {
-    setTarifsBord(tarifsBord.filter((t) => t.id !== id));
+    updateField('tarifsBord', values.tarifsBord.filter((t) => t.id !== id));
   };
 
   const addTarifControle = () => {
-    const montant = parseFloat(tarifControleMontant);
+    const montant = parseFloat(values.tarifControleMontant);
     if (!montant || montant <= 0) {
       toast.error('Montant invalide');
       return;
     }
-    setTarifsControle([...tarifsControle, { id: Date.now(), type: tarifControleType, montant }]);
-    setTarifControleMontant('');
+    updateFields({
+      tarifsControle: [...values.tarifsControle, { id: Date.now(), type: values.tarifControleType, montant }],
+      tarifControleMontant: '',
+    });
   };
 
   const removeTarifControle = (id: number) => {
-    setTarifsControle(tarifsControle.filter((t) => t.id !== id));
+    updateField('tarifsControle', values.tarifsControle.filter((t) => t.id !== id));
   };
 
   const addPv = () => {
-    const montant = parseFloat(pvMontant);
+    const montant = parseFloat(values.pvMontant);
     if (!montant || montant <= 0) {
       toast.error('Montant invalide');
       return;
     }
-    setPvList([...pvList, { id: Date.now(), type: pvType, montant }]);
-    setPvMontant('');
+    updateFields({
+      pvList: [...values.pvList, { id: Date.now(), type: values.pvType, montant }],
+      pvMontant: '',
+    });
   };
 
   const removePv = (id: number) => {
-    setPvList(pvList.filter((t) => t.id !== id));
-  };
-
-  const resetForm = () => {
-    setStationName('');
-    setPlatform('');
-    setOrigin('');
-    setDestination('');
-    setDate(today);
-    setTime(new Date().toTimeString().slice(0, 5));
-    setPassengers('');
-    setTarifsBord([]);
-    setTarifBordMontant('');
-    setTarifBordDescription('');
-    setTarifsControle([]);
-    setStt50Count(0);
-    setPvList([]);
-    setStt100Count(0);
-    setRiPositif(0);
-    setRiNegatif(0);
-    setCommentaire('');
+    updateField('pvList', values.pvList.filter((t) => t.id !== id));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!stationName.trim() || !platform.trim() || !passengers) {
+    if (!values.stationName.trim() || !values.platform.trim() || !values.passengers) {
       toast.error('Veuillez remplir les champs obligatoires');
       return;
     }
 
     addControl({
-      stationName,
-      platform,
-      origin,
-      destination,
-      date,
-      time,
+      stationName: values.stationName,
+      platform: values.platform,
+      origin: values.origin,
+      destination: values.destination,
+      date: values.date,
+      time: values.time,
       passengers: passengersNum,
-      tarifsBord,
-      tarifsControle,
-      stt50Count,
-      pvList,
-      stt100Count,
-      riPositif,
-      riNegatif,
-      commentaire,
+      tarifsBord: values.tarifsBord,
+      tarifsControle: values.tarifsControle,
+      stt50Count: values.stt50Count,
+      pvList: values.pvList,
+      stt100Count: values.stt100Count,
+      riPositif: values.riPositif,
+      riNegatif: values.riNegatif,
+      commentaire: values.commentaire,
       fraudCount,
     });
 
     toast.success('Contrôle enregistré !', {
-      description: `${stationName} - ${passengersNum} passagers, ${fraudCount} fraudes`,
+      description: `${values.stationName} - ${passengersNum} passagers, ${fraudCount} fraudes`,
     });
 
-    resetForm();
+    clearPersistedData();
   };
+
   const columns = [
     {
       key: 'stationName',
@@ -259,8 +268,8 @@ export default function StationControls() {
                     <Label htmlFor="stationName">Gare *</Label>
                     <GareSelector
                       id="stationName"
-                      value={stationName}
-                      onChange={setStationName}
+                      value={values.stationName}
+                      onChange={(v) => updateField('stationName', v)}
                       placeholder="Rechercher une gare..."
                     />
                   </div>
@@ -269,16 +278,16 @@ export default function StationControls() {
                     <Input
                       id="platform"
                       placeholder="5A"
-                      value={platform}
-                      onChange={(e) => setPlatform(e.target.value)}
+                      value={values.platform}
+                      onChange={(e) => updateField('platform', e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="origin">Origine</Label>
                     <CitySelect
                       id="origin"
-                      value={origin}
-                      onChange={setOrigin}
+                      value={values.origin}
+                      onChange={(v) => updateField('origin', v)}
                       placeholder="Provenance du train"
                     />
                   </div>
@@ -286,8 +295,8 @@ export default function StationControls() {
                     <Label htmlFor="destination">Destination</Label>
                     <CitySelect
                       id="destination"
-                      value={destination}
-                      onChange={setDestination}
+                      value={values.destination}
+                      onChange={(v) => updateField('destination', v)}
                       placeholder="Destination du train"
                     />
                   </div>
@@ -295,11 +304,11 @@ export default function StationControls() {
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div className="space-y-2">
                     <Label htmlFor="date">Date</Label>
-                    <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                    <Input id="date" type="date" value={values.date} onChange={(e) => updateField('date', e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="time">Heure</Label>
-                    <Input id="time" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+                    <Input id="time" type="time" value={values.time} onChange={(e) => updateField('time', e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="passengers">Passagers *</Label>
@@ -308,8 +317,8 @@ export default function StationControls() {
                       type="number"
                       min="0"
                       placeholder="150"
-                      value={passengers}
-                      onChange={(e) => setPassengers(e.target.value)}
+                      value={values.passengers}
+                      onChange={(e) => updateField('passengers', e.target.value)}
                     />
                   </div>
                 </div>
@@ -329,10 +338,10 @@ export default function StationControls() {
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => setTarifBordType('bord')}
+                    onClick={() => updateField('tarifBordType', 'bord')}
                     className={cn(
                       'rounded-lg px-4 py-2 text-sm font-medium transition-all',
-                      tarifBordType === 'bord'
+                      values.tarifBordType === 'bord'
                         ? 'bg-accent text-accent-foreground shadow-md'
                         : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
                     )}
@@ -341,10 +350,10 @@ export default function StationControls() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setTarifBordType('exceptionnel')}
+                    onClick={() => updateField('tarifBordType', 'exceptionnel')}
                     className={cn(
                       'rounded-lg px-4 py-2 text-sm font-medium transition-all',
-                      tarifBordType === 'exceptionnel'
+                      values.tarifBordType === 'exceptionnel'
                         ? 'bg-warning text-warning-foreground shadow-md'
                         : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
                     )}
@@ -358,8 +367,8 @@ export default function StationControls() {
                     min="0"
                     step="0.01"
                     placeholder="Montant (€)"
-                    value={tarifBordMontant}
-                    onChange={(e) => setTarifBordMontant(e.target.value)}
+                    value={values.tarifBordMontant}
+                    onChange={(e) => updateField('tarifBordMontant', e.target.value)}
                     className="flex-1"
                   />
                   <Button type="button" onClick={addTarifBord} variant="secondary">
@@ -381,7 +390,7 @@ export default function StationControls() {
               <CardContent className="space-y-4">
                 <div className="space-y-3">
                   <Label>Type</Label>
-                  <TypeToggle value={tarifControleType} onChange={setTarifControleType} />
+                  <TypeToggle value={values.tarifControleType} onChange={(v) => updateField('tarifControleType', v)} />
                 </div>
                 <div className="flex gap-2">
                   <Input
@@ -389,8 +398,8 @@ export default function StationControls() {
                     min="0"
                     step="0.01"
                     placeholder="Montant (€)"
-                    value={tarifControleMontant}
-                    onChange={(e) => setTarifControleMontant(e.target.value)}
+                    value={values.tarifControleMontant}
+                    onChange={(e) => updateField('tarifControleMontant', e.target.value)}
                     className="flex-1"
                   />
                   <Button type="button" onClick={addTarifControle} variant="secondary">
@@ -400,8 +409,8 @@ export default function StationControls() {
                 </div>
                 <Counter
                   label="STT 50"
-                  value={stt50Count}
-                  onChange={setStt50Count}
+                  value={values.stt50Count}
+                  onChange={(v) => updateField('stt50Count', v)}
                   variant="primary"
                   showTotal={{ perUnit: 50, label: 'Total' }}
                 />
@@ -419,7 +428,7 @@ export default function StationControls() {
               <CardContent className="space-y-4">
                 <div className="space-y-3">
                   <Label>Type</Label>
-                  <TypeToggle value={pvType} onChange={setPvType} />
+                  <TypeToggle value={values.pvType} onChange={(v) => updateField('pvType', v)} />
                 </div>
                 <div className="flex gap-2">
                   <Input
@@ -427,8 +436,8 @@ export default function StationControls() {
                     min="0"
                     step="0.01"
                     placeholder="Montant (€)"
-                    value={pvMontant}
-                    onChange={(e) => setPvMontant(e.target.value)}
+                    value={values.pvMontant}
+                    onChange={(e) => updateField('pvMontant', e.target.value)}
                     className="flex-1"
                   />
                   <Button type="button" onClick={addPv} variant="secondary">
@@ -438,8 +447,8 @@ export default function StationControls() {
                 </div>
                 <Counter
                   label="STT 100"
-                  value={stt100Count}
-                  onChange={setStt100Count}
+                  value={values.stt100Count}
+                  onChange={(v) => updateField('stt100Count', v)}
                   variant="destructive"
                   showTotal={{ perUnit: 100, label: 'Total' }}
                 />
@@ -456,16 +465,16 @@ export default function StationControls() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Counter label="RI positif" value={riPositif} onChange={setRiPositif} variant="success" />
-                  <Counter label="RI négatif" value={riNegatif} onChange={setRiNegatif} variant="destructive" />
+                  <Counter label="RI positif" value={values.riPositif} onChange={(v) => updateField('riPositif', v)} variant="success" />
+                  <Counter label="RI négatif" value={values.riNegatif} onChange={(v) => updateField('riNegatif', v)} variant="destructive" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="commentaire">Commentaire</Label>
                   <Textarea
                     id="commentaire"
                     placeholder="Notes supplémentaires..."
-                    value={commentaire}
-                    onChange={(e) => setCommentaire(e.target.value)}
+                    value={values.commentaire}
+                    onChange={(e) => updateField('commentaire', e.target.value)}
                     rows={3}
                   />
                 </div>
@@ -498,7 +507,7 @@ export default function StationControls() {
 
                 {/* Tarifs à bord List */}
                 <TarifBordList
-                  items={tarifsBord}
+                  items={values.tarifsBord}
                   onRemove={removeTarifBord}
                   total={totalTarifsBord}
                 />
@@ -506,21 +515,21 @@ export default function StationControls() {
                 {/* Tarifs Contrôle List */}
                 <TarifList
                   title="Tarifs contrôle"
-                  items={tarifsControle}
+                  items={values.tarifsControle}
                   onRemove={removeTarifControle}
                   total={totalTarifsControle}
                   variant="primary"
-                  stt50Count={stt50Count}
+                  stt50Count={values.stt50Count}
                 />
 
                 {/* PV List */}
                 <TarifList
                   title="Procès-verbaux"
-                  items={pvList}
+                  items={values.pvList}
                   onRemove={removePv}
                   total={totalPV}
                   variant="destructive"
-                  stt100Count={stt100Count}
+                  stt100Count={values.stt100Count}
                 />
 
                 {/* RI Summary */}
@@ -528,11 +537,11 @@ export default function StationControls() {
                   <h4 className="text-sm font-medium text-muted-foreground">Relevés d'identité</h4>
                   <div className="flex gap-2">
                     <div className="flex-1 rounded-lg bg-success/10 p-2 text-center">
-                      <p className="text-lg font-bold text-success">{riPositif}</p>
+                      <p className="text-lg font-bold text-success">{values.riPositif}</p>
                       <p className="text-xs text-muted-foreground">Positifs</p>
                     </div>
                     <div className="flex-1 rounded-lg bg-destructive/10 p-2 text-center">
-                      <p className="text-lg font-bold text-destructive">{riNegatif}</p>
+                      <p className="text-lg font-bold text-destructive">{values.riNegatif}</p>
                       <p className="text-xs text-muted-foreground">Négatifs</p>
                     </div>
                   </div>

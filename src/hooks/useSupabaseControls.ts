@@ -319,6 +319,86 @@ export function useSupabaseOnboardControls() {
     }
   }, []);
 
+  const updateControl = useCallback(async (id: string, updates: Partial<Omit<OnboardControl, 'id' | 'timestamp' | 'userId'>>) => {
+    if (!id) {
+      toast.error('ID de contrôle invalide');
+      return null;
+    }
+
+    const passengers = safeNumber(updates.passengers);
+    const fraudCount = safeNumber(updates.fraudCount);
+    const fraudRate = passengers > 0 ? (fraudCount / passengers) * 100 : 0;
+
+    try {
+      const { data, error: updateError } = await supabase
+        .from('onboard_controls')
+        .update({
+          ...(updates.trainNumber !== undefined && { train_number: safeString(updates.trainNumber) }),
+          ...(updates.origin !== undefined && { origin: safeString(updates.origin) }),
+          ...(updates.destination !== undefined && { destination: safeString(updates.destination) }),
+          ...(updates.date !== undefined && { control_date: safeString(updates.date) }),
+          ...(updates.time !== undefined && { control_time: safeString(updates.time) }),
+          ...(updates.passengers !== undefined && { passengers }),
+          ...(updates.tarifsBord !== undefined && { tarifs_bord: safeArray(updates.tarifsBord) as unknown as any }),
+          ...(updates.tarifsControle !== undefined && { tarifs_controle: safeArray(updates.tarifsControle) as unknown as any }),
+          ...(updates.stt50Count !== undefined && { stt50_count: safeNumber(updates.stt50Count) }),
+          ...(updates.pvList !== undefined && { pv_list: safeArray(updates.pvList) as unknown as any }),
+          ...(updates.stt100Count !== undefined && { stt100_count: safeNumber(updates.stt100Count) }),
+          ...(updates.riPositif !== undefined && { ri_positif: safeNumber(updates.riPositif) }),
+          ...(updates.riNegatif !== undefined && { ri_negatif: safeNumber(updates.riNegatif) }),
+          ...(updates.commentaire !== undefined && { commentaire: safeString(updates.commentaire) }),
+          ...(updates.fraudCount !== undefined && { fraud_count: fraudCount }),
+          fraud_rate: fraudRate,
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+
+      if (!data) {
+        throw new Error('Aucune donnée retournée');
+      }
+
+      const updatedControl: OnboardControl = {
+        id: safeString(data.id),
+        trainNumber: safeString(data.train_number),
+        origin: safeString(data.origin),
+        destination: safeString(data.destination),
+        date: safeString(data.control_date),
+        time: safeString(data.control_time),
+        passengers: safeNumber(data.passengers),
+        tarifsBord: safeArray(data.tarifs_bord as unknown as TarifBordItem[]),
+        tarifsControle: safeArray(data.tarifs_controle as unknown as TarifItem[]),
+        stt50Count: safeNumber(data.stt50_count),
+        pvList: safeArray(data.pv_list as unknown as TarifItem[]),
+        stt100Count: safeNumber(data.stt100_count),
+        riPositif: safeNumber(data.ri_positif),
+        riNegatif: safeNumber(data.ri_negatif),
+        commentaire: safeString(data.commentaire),
+        fraudCount: safeNumber(data.fraud_count),
+        fraudRate: safeNumber(data.fraud_rate),
+        timestamp: safeString(data.created_at),
+        userId: safeString(data.user_id),
+      };
+
+      setControls((prev) => prev.map((c) => c.id === id ? updatedControl : c));
+      toast.success('Contrôle mis à jour');
+      return updatedControl;
+    } catch (err) {
+      console.error('Error updating control:', err);
+      
+      if (isConnectionError(err)) {
+        toast.error('Erreur de connexion', {
+          description: 'Impossible de mettre à jour. Réessayez.',
+        });
+      } else {
+        toast.error('Erreur lors de la mise à jour');
+      }
+      return null;
+    }
+  }, []);
+
   const clearControls = useCallback(async () => {
     if (!user?.id) return;
     
@@ -343,6 +423,7 @@ export function useSupabaseOnboardControls() {
     loading, 
     error,
     addControl, 
+    updateControl,
     deleteControl, 
     clearControls, 
     refetch: fetchControls, 
@@ -572,6 +653,88 @@ export function useSupabaseStationControls() {
     }
   }, []);
 
+  const updateControl = useCallback(async (id: string, updates: Partial<Omit<StationControl, 'id' | 'timestamp' | 'userId'>>) => {
+    if (!id) {
+      toast.error('ID de contrôle invalide');
+      return null;
+    }
+
+    const passengers = safeNumber(updates.passengers);
+    const fraudCount = safeNumber(updates.fraudCount);
+    const fraudRate = passengers > 0 ? (fraudCount / passengers) * 100 : 0;
+
+    try {
+      const { data, error: updateError } = await supabase
+        .from('station_controls')
+        .update({
+          ...(updates.stationName !== undefined && { station_name: safeString(updates.stationName) }),
+          ...(updates.platform !== undefined && { platform: safeString(updates.platform) }),
+          ...(updates.origin !== undefined && { origin: safeString(updates.origin) }),
+          ...(updates.destination !== undefined && { destination: safeString(updates.destination) }),
+          ...(updates.date !== undefined && { control_date: safeString(updates.date) }),
+          ...(updates.time !== undefined && { control_time: safeString(updates.time) }),
+          ...(updates.passengers !== undefined && { passengers }),
+          ...(updates.tarifsBord !== undefined && { tarifs_bord: safeArray(updates.tarifsBord) as unknown as any }),
+          ...(updates.tarifsControle !== undefined && { tarifs_controle: safeArray(updates.tarifsControle) as unknown as any }),
+          ...(updates.stt50Count !== undefined && { stt50_count: safeNumber(updates.stt50Count) }),
+          ...(updates.pvList !== undefined && { pv_list: safeArray(updates.pvList) as unknown as any }),
+          ...(updates.stt100Count !== undefined && { stt100_count: safeNumber(updates.stt100Count) }),
+          ...(updates.riPositif !== undefined && { ri_positif: safeNumber(updates.riPositif) }),
+          ...(updates.riNegatif !== undefined && { ri_negatif: safeNumber(updates.riNegatif) }),
+          ...(updates.commentaire !== undefined && { commentaire: safeString(updates.commentaire) }),
+          ...(updates.fraudCount !== undefined && { fraud_count: fraudCount }),
+          fraud_rate: fraudRate,
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+
+      if (!data) {
+        throw new Error('Aucune donnée retournée');
+      }
+
+      const updatedControl: StationControl = {
+        id: safeString(data.id),
+        stationName: safeString(data.station_name),
+        platform: safeString(data.platform),
+        origin: safeString(data.origin),
+        destination: safeString(data.destination),
+        date: safeString(data.control_date),
+        time: safeString(data.control_time),
+        passengers: safeNumber(data.passengers),
+        tarifsBord: safeArray(data.tarifs_bord as unknown as TarifBordItem[]),
+        tarifsControle: safeArray(data.tarifs_controle as unknown as TarifItem[]),
+        stt50Count: safeNumber(data.stt50_count),
+        pvList: safeArray(data.pv_list as unknown as TarifItem[]),
+        stt100Count: safeNumber(data.stt100_count),
+        riPositif: safeNumber(data.ri_positif),
+        riNegatif: safeNumber(data.ri_negatif),
+        commentaire: safeString(data.commentaire),
+        fraudCount: safeNumber(data.fraud_count),
+        fraudRate: safeNumber(data.fraud_rate),
+        timestamp: safeString(data.created_at),
+        userId: safeString(data.user_id),
+      };
+
+      setControls((prev) => prev.map((c) => c.id === id ? updatedControl : c));
+      toast.success('Contrôle mis à jour');
+      return updatedControl;
+    } catch (err) {
+      console.error('Error updating control:', err);
+      
+      if (isConnectionError(err)) {
+        toast.error('Erreur de connexion', {
+          description: 'Impossible de mettre à jour. Réessayez.',
+        });
+      } else {
+        toast.error('Erreur lors de la mise à jour');
+      }
+      return null;
+    }
+  }, []);
+
   const clearControls = useCallback(async () => {
     if (!user?.id) return;
     
@@ -596,6 +759,7 @@ export function useSupabaseStationControls() {
     loading, 
     error,
     addControl, 
+    updateControl,
     deleteControl, 
     clearControls, 
     refetch: fetchControls, 
