@@ -48,8 +48,8 @@ function formatTarifDetail(items: TarifItem[], sttCount: number, sttAmount: numb
 }
 
 export default function ControlHistory() {
-  const { controls: onboardControls, loading: loadingOnboard, deleteControl: deleteOnboard } = useSupabaseOnboardControls();
-  const { controls: stationControls, loading: loadingStation, deleteControl: deleteStation } = useSupabaseStationControls();
+  const { controls: onboardControls, loading: loadingOnboard, deleteControl: deleteOnboard, updateControl: updateOnboard } = useSupabaseOnboardControls();
+  const { controls: stationControls, loading: loadingStation, deleteControl: deleteStation, updateControl: updateStation } = useSupabaseStationControls();
   
   // Selected control for detail popup
   const [selectedControl, setSelectedControl] = useState<(OnboardControl & { _type: 'onboard' }) | (StationControl & { _type: 'station' }) | null>(null);
@@ -241,9 +241,31 @@ export default function ControlHistory() {
     });
   };
 
-  const saveEdit = () => {
-    // L'édition n'est pas supportée directement - fermer le dialog
-    toast.info('L\'édition sera disponible dans une prochaine version');
+  const saveEdit = async () => {
+    if (!editingControl || !editForm) return;
+    
+    // Calculate new fraud count and rate
+    const newFraudCount = editForm.tarifsControle.length + editForm.pvList.length + editForm.stt50Count + editForm.stt100Count;
+    
+    const updates = {
+      passengers: editForm.passengers,
+      tarifsBord: editForm.tarifsBord,
+      tarifsControle: editForm.tarifsControle,
+      stt50Count: editForm.stt50Count,
+      pvList: editForm.pvList,
+      stt100Count: editForm.stt100Count,
+      riPositif: editForm.riPositif,
+      riNegatif: editForm.riNegatif,
+      commentaire: editForm.commentaire,
+      fraudCount: newFraudCount,
+    };
+    
+    if (editingControl._type === 'onboard') {
+      await updateOnboard(editingControl.id, updates);
+    } else {
+      await updateStation(editingControl.id, updates);
+    }
+    
     setEditingControl(null);
     setEditForm(null);
   };
