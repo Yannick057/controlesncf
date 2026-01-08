@@ -22,15 +22,18 @@ export const THEME_OPTIONS: { value: Theme; label: string; icon: string }[] = [
 ];
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('dark');
+  const [theme, setThemeState] = useState<Theme>(() => {
+    // Initialize from localStorage during state creation
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('theme_preference') as Theme;
+      return savedTheme || 'dark';
+    }
+    return 'dark';
+  });
   const [systemTheme, setSystemTheme] = useState<'dark' | 'light'>('dark');
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme_preference') as Theme;
-    if (savedTheme) {
-      setThemeState(savedTheme);
-    }
-
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     setSystemTheme(mediaQuery.matches ? 'dark' : 'light');
 
@@ -38,6 +41,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setSystemTheme(e.matches ? 'dark' : 'light');
     };
     mediaQuery.addEventListener('change', handler);
+    setIsInitialized(true);
     return () => mediaQuery.removeEventListener('change', handler);
   }, []);
 
@@ -52,6 +56,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setThemeState(newTheme);
     localStorage.setItem('theme_preference', newTheme);
   };
+
+  // Prevent flash of unstyled content
+  if (!isInitialized) {
+    return <div className="dark" style={{ minHeight: '100vh', background: 'hsl(222, 25%, 8%)' }}>{children}</div>;
+  }
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme, effectiveTheme }}>
