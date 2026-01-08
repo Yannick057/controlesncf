@@ -218,6 +218,39 @@ export type Database = {
         }
         Relationships: []
       }
+      reports: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          nom_gare: string
+          statut: string
+          type: string
+          user_id: string
+          voie: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          nom_gare: string
+          statut?: string
+          type: string
+          user_id: string
+          voie?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          nom_gare?: string
+          statut?: string
+          type?: string
+          user_id?: string
+          voie?: string | null
+        }
+        Relationships: []
+      }
       role_history: {
         Row: {
           changed_by: string
