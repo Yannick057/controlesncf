@@ -72,6 +72,7 @@ export default function OnboardControls() {
   const { values: formValues, updateField, updateFields, clearPersistedData, isDirty } = useFormPersistence<OnboardFormValues>({
     key: 'onboard_control_form',
     defaultValues: getDefaultFormValues(),
+    formName: 'Contrôle à bord',
   });
 
   // Destructure for easier access
