@@ -75,6 +75,7 @@ export default function StationControls() {
   const { values, updateField, updateFields, clearPersistedData } = useFormPersistence<StationFormData>({
     key: 'station_control',
     defaultValues: defaultFormValues,
+    formName: 'Contrôle en gare',
   });
 
   // Calculated values

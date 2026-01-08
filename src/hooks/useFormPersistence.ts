@@ -1,17 +1,21 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { toast } from '@/hooks/use-toast';
 
 interface UseFormPersistenceOptions<T> {
   key: string;
   defaultValues: T;
   debounceMs?: number;
+  formName?: string;
 }
 
 export function useFormPersistence<T extends Record<string, any>>({
   key,
   defaultValues,
   debounceMs = 300,
+  formName = 'Formulaire',
 }: UseFormPersistenceOptions<T>) {
   const storageKey = `form_draft_${key}`;
+  const hasShownToast = useRef(false);
   
   // Initialize state from localStorage or default values
   const [values, setValues] = useState<T>(() => {
@@ -28,13 +32,27 @@ export function useFormPersistence<T extends Record<string, any>>({
     return defaultValues;
   });
 
-  const [isDirty, setIsDirty] = useState(() => {
+  const [wasRestored] = useState(() => {
     try {
       return localStorage.getItem(storageKey) !== null;
     } catch {
       return false;
     }
   });
+
+  const [isDirty, setIsDirty] = useState(wasRestored);
+
+  // Show toast when draft is restored
+  useEffect(() => {
+    if (wasRestored && !hasShownToast.current) {
+      hasShownToast.current = true;
+      toast({
+        title: "Brouillon restauré",
+        description: `Votre saisie précédente de "${formName}" a été restaurée.`,
+        duration: 4000,
+      });
+    }
+  }, [wasRestored, formName]);
 
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
