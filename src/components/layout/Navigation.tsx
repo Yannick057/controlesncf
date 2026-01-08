@@ -45,6 +45,7 @@ export function Navigation() {
   // Add role-specific items
   let navItems = [...orderedNavItems];
   if (user?.role === 'admin') {
+    navItems.push(managerNavItem); // Admin can access manager page
     navItems.push(adminNavItem);
   } else if (user?.role === 'manager') {
     navItems.push(managerNavItem);
@@ -100,6 +101,7 @@ export function MobileNavigation() {
   // Add role-specific items
   let navItems = [...orderedNavItems];
   if (user?.role === 'admin') {
+    navItems.push(managerNavItem); // Admin can access manager page
     navItems.push(adminNavItem);
   } else if (user?.role === 'manager') {
     navItems.push(managerNavItem);

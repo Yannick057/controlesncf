@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Building2, AlertTriangle, FileText, User, Download, FileCode, Ticket, Loader2 } from 'lucide-react';
+import { Plus, Building2, AlertTriangle, FileText, User, Download, Ticket, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,8 +12,8 @@ import { TarifList } from '@/components/controls/TarifList';
 import { TarifBordList } from '@/components/controls/TarifBordList';
 import { GareSelector } from '@/components/controls/GareSelector';
 import { CitySelect } from '@/components/controls/CitySelect';
+import { ExportFilterDialog } from '@/components/controls/ExportFilterDialog';
 import { useSupabaseStationControls, StationControl, TarifItem, TarifBordItem, TarifBordType } from '@/hooks/useSupabaseControls';
-import { exportToHTML, exportToPDF } from '@/utils/exportControls';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -164,25 +164,6 @@ export default function StationControls() {
 
     resetForm();
   };
-
-  const handleExportHTML = () => {
-    if (controls.length === 0) {
-      toast.error('Aucun contrôle à exporter');
-      return;
-    }
-    exportToHTML(controls, 'station');
-    toast.success('Export HTML téléchargé');
-  };
-
-  const handleExportPDF = () => {
-    if (controls.length === 0) {
-      toast.error('Aucun contrôle à exporter');
-      return;
-    }
-    exportToPDF(controls, 'station');
-    toast.success('Export PDF ouvert');
-  };
-
   const columns = [
     {
       key: 'stationName',
@@ -248,16 +229,16 @@ export default function StationControls() {
           <h1 className="text-2xl font-bold tracking-tight">Contrôles en gare</h1>
           <p className="text-muted-foreground">Enregistrez et consultez les contrôles effectués dans les gares</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleExportHTML}>
-            <FileCode className="mr-1 h-4 w-4" />
-            HTML
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleExportPDF}>
-            <Download className="mr-1 h-4 w-4" />
-            PDF
-          </Button>
-        </div>
+        <ExportFilterDialog 
+          controls={controls} 
+          type="station"
+          trigger={
+            <Button variant="outline" size="sm" disabled={controls.length === 0}>
+              <Download className="mr-1 h-4 w-4" />
+              Exporter ({controls.length})
+            </Button>
+          }
+        />
       </div>
 
       <form onSubmit={handleSubmit}>
