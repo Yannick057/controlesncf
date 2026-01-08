@@ -364,8 +364,8 @@ export default function Manager() {
     toast.success('Rapport PDF généré');
   };
 
-  // Redirect non-managers
-  if (user && user.role !== 'manager') {
+  // Redirect non-managers and non-admins
+  if (user && user.role !== 'manager' && user.role !== 'admin') {
     return <Navigate to="/" replace />;
   }
 
