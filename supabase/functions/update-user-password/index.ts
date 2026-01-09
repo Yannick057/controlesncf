@@ -1,9 +1,47 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+// Get allowed origins from environment or use defaults
+const getAllowedOrigins = (): string[] => {
+  const customOrigin = Deno.env.get('ALLOWED_ORIGIN');
+  const origins = [
+    'http://localhost:8080',
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://lovable.dev',
+  ];
+  
+  if (customOrigin) {
+    origins.push(customOrigin);
+  }
+  
+  return origins;
+};
+
+const isOriginAllowed = (origin: string | null): boolean => {
+  if (!origin) return false;
+  
+  const allowedOrigins = getAllowedOrigins();
+  
+  // Check exact matches
+  if (allowedOrigins.includes(origin)) {
+    return true;
+  }
+  
+  // Allow Lovable project domains
+  if (origin.endsWith('.lovableproject.com') || origin.endsWith('.lovable.app')) {
+    return true;
+  }
+  
+  return false;
+};
+
+const getCorsHeaders = (origin: string | null): Record<string, string> => {
+  const allowedOrigin = isOriginAllowed(origin) ? origin : 'https://lovable.dev';
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin || 'https://lovable.dev',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  };
+};
 
 // Simple in-memory rate limiting (resets on cold start, but provides basic protection)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -28,6 +66,9 @@ function checkRateLimit(userId: string): boolean {
 }
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -40,7 +81,7 @@ Deno.serve(async (req) => {
     // Get authorization header
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      console.log('Missing authorization header')
+      console.info('[AUTH] Missing authorization header')
       return new Response(
         JSON.stringify({ error: 'Missing authorization header' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -58,18 +99,16 @@ Deno.serve(async (req) => {
     )
 
     if (userError || !callerUser) {
-      console.log('Failed to get caller user:', userError)
+      console.info('[AUTH] Authentication failed')
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log('Caller user:', callerUser.id, callerUser.email)
-
     // Check rate limit
     if (!checkRateLimit(callerUser.id)) {
-      console.log('Rate limit exceeded for user:', callerUser.id)
+      console.info('[SECURITY] Rate limit exceeded')
       return new Response(
         JSON.stringify({ error: 'Too many requests. Please try again later.' }),
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -85,7 +124,7 @@ Deno.serve(async (req) => {
       .maybeSingle()
 
     if (roleError) {
-      console.log('Error fetching caller role:', roleError)
+      console.error('[ERROR] Failed to fetch role')
       return new Response(
         JSON.stringify({ error: 'Error fetching role' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -93,11 +132,10 @@ Deno.serve(async (req) => {
     }
 
     const callerRole = callerRoleData?.role || 'agent'
-    console.log('Caller role:', callerRole)
 
     // Only admins and managers can change passwords
     if (callerRole !== 'admin' && callerRole !== 'manager') {
-      console.log('Permission denied: not admin or manager')
+      console.info('[AUTH] Permission denied: insufficient role')
       return new Response(
         JSON.stringify({ error: 'Permission denied' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -108,7 +146,6 @@ Deno.serve(async (req) => {
     const { targetUserId, newPassword } = await req.json()
 
     if (!targetUserId || !newPassword) {
-      console.log('Missing required fields')
       return new Response(
         JSON.stringify({ error: 'Missing targetUserId or newPassword' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -116,7 +153,6 @@ Deno.serve(async (req) => {
     }
 
     if (newPassword.length < 8) {
-      console.log('Password too short')
       return new Response(
         JSON.stringify({ error: 'Password must be at least 8 characters' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -126,7 +162,6 @@ Deno.serve(async (req) => {
     // Enhanced password validation: require at least one uppercase, one lowercase, and one number
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
     if (!passwordRegex.test(newPassword)) {
-      console.log('Password does not meet complexity requirements')
       return new Response(
         JSON.stringify({ error: 'Password must contain at least one uppercase letter, one lowercase letter, and one number' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -141,11 +176,10 @@ Deno.serve(async (req) => {
       .maybeSingle()
 
     const targetRole = targetRoleData?.role || 'agent'
-    console.log('Target user role:', targetRole)
 
     // Managers cannot change admin passwords
     if (callerRole === 'manager' && targetRole === 'admin') {
-      console.log('Manager cannot change admin password')
+      console.info('[AUTH] Manager attempted admin password change')
       return new Response(
         JSON.stringify({ error: 'Managers cannot change admin passwords' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -154,7 +188,6 @@ Deno.serve(async (req) => {
 
     // Cannot change own password via this endpoint
     if (targetUserId === callerUser.id) {
-      console.log('Cannot change own password')
       return new Response(
         JSON.stringify({ error: 'Cannot change your own password via this endpoint' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -168,14 +201,15 @@ Deno.serve(async (req) => {
     )
 
     if (updateError) {
-      console.log('Error updating password:', updateError)
+      console.error('[ERROR] Password update failed')
       return new Response(
         JSON.stringify({ error: 'Failed to update password' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log('Password updated successfully for user:', targetUserId, 'by:', callerUser.id)
+    // Security audit log - minimal info without PII
+    console.info('[SECURITY] Password changed successfully')
 
     return new Response(
       JSON.stringify({ success: true, message: 'Password updated successfully' }),
@@ -183,10 +217,10 @@ Deno.serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('Unexpected error:', error)
+    console.error('[ERROR] Unexpected error occurred')
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...getCorsHeaders(null), 'Content-Type': 'application/json' } }
     )
   }
 })
