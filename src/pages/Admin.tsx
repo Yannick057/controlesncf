@@ -15,13 +15,15 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { 
   Shield, Users, RefreshCw, Crown, UserCog, User as UserIcon, 
-  Download, Search, Filter, History, Key, X, Database, Upload, Trash2, Bug, Sparkles, Plus, Settings2
+  Download, Search, Filter, History, Key, X, Database, Upload, Trash2, Bug, Sparkles, Plus, Settings2, FileText, UserX, Ban, RotateCcw
 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
+import { AuditLogsTab } from '@/components/admin/AuditLogsTab';
 
 type AppRole = 'admin' | 'manager' | 'agent';
 
@@ -69,6 +71,7 @@ export default function Admin() {
   const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
+  const [managingUser, setManagingUser] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -226,6 +229,38 @@ export default function Admin() {
     }
   };
 
+  const handleUserAction = async (userId: string, action: 'delete' | 'suspend' | 'reactivate') => {
+    setManagingUser(userId);
+    try {
+      const response = await supabase.functions.invoke('manage-user', {
+        body: { targetUserId: userId, action },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Erreur lors de l\'action');
+      }
+
+      const actionLabels = {
+        delete: 'supprimé',
+        suspend: 'suspendu',
+        reactivate: 'réactivé',
+      };
+
+      toast.success(`Compte ${actionLabels[action]} avec succès`);
+      
+      if (action === 'delete') {
+        setUsers(prev => prev.filter(u => u.id !== userId));
+      } else {
+        fetchUsers();
+      }
+    } catch (error: any) {
+      console.error('Error managing user:', error);
+      toast.error(error.message || 'Erreur lors de l\'action');
+    } finally {
+      setManagingUser(null);
+    }
+  };
+
   const exportUsersCSV = () => {
     const headers = ['Nom', 'Email', 'Rôle', 'Date d\'inscription'];
     const rows = filteredUsers.map(u => [
@@ -375,6 +410,10 @@ export default function Admin() {
           <TabsTrigger value="history" className="gap-2">
             <History className="h-4 w-4" />
             Historique des rôles
+          </TabsTrigger>
+          <TabsTrigger value="audit" className="gap-2">
+            <FileText className="h-4 w-4" />
+            Logs d'audit
           </TabsTrigger>
           <TabsTrigger value="bugs" className="gap-2">
             <Bug className="h-4 w-4" />
@@ -561,6 +600,67 @@ export default function Admin() {
                                     </DialogFooter>
                                   </DialogContent>
                                 </Dialog>
+                                
+                                {/* Suspend/Reactivate Button */}
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button 
+                                      variant="outline" 
+                                      size="icon"
+                                      disabled={isCurrentUser || managingUser === u.id}
+                                      title="Suspendre le compte"
+                                    >
+                                      <Ban className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Suspendre ce compte ?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        L'utilisateur <strong>{u.full_name || u.email}</strong> ne pourra plus se connecter.
+                                        Cette action est réversible.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleUserAction(u.id, 'suspend')}>
+                                        Suspendre
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+
+                                {/* Delete Button */}
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button 
+                                      variant="destructive" 
+                                      size="icon"
+                                      disabled={isCurrentUser || managingUser === u.id}
+                                      title="Supprimer le compte"
+                                    >
+                                      <UserX className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Supprimer ce compte ?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        L'utilisateur <strong>{u.full_name || u.email}</strong> sera définitivement supprimé.
+                                        Cette action est irréversible et supprimera toutes les données associées.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                      <AlertDialogAction 
+                                        onClick={() => handleUserAction(u.id, 'delete')}
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      >
+                                        Supprimer définitivement
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -637,6 +737,10 @@ export default function Admin() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="audit">
+          <AuditLogsTab />
         </TabsContent>
 
         <TabsContent value="bugs">
