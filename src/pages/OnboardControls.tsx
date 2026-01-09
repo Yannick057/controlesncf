@@ -22,9 +22,12 @@ import { TypeToggle, TarifType } from '@/components/controls/TypeToggle';
 import { TarifList } from '@/components/controls/TarifList';
 import { TarifBordList } from '@/components/controls/TarifBordList';
 import { CitySelect } from '@/components/controls/CitySelect';
+import { TrainNumberInput } from '@/components/controls/TrainNumberInput';
 import { ExportFilterDialog } from '@/components/controls/ExportFilterDialog';
 import { useSupabaseOnboardControls, OnboardControl, TarifItem, TarifBordItem, TarifBordType } from '@/hooks/useSupabaseControls';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { useHapticFeedback } from '@/hooks/useHapticFeedback';
+import { useTrainPrediction } from '@/hooks/useTrainPrediction';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -78,6 +81,8 @@ const getDefaultFormValues = (): OnboardFormValues => ({
 
 export default function OnboardControls() {
   const { controls, loading, addControl } = useSupabaseOnboardControls();
+  const { vibrateSuccess, vibrateError } = useHapticFeedback();
+  const { addRecentTrain } = useTrainPrediction();
   
   // Use form persistence hook to save form data when changing tabs
   const { values: formValues, updateField, updateFields, clearPersistedData, isDirty } = useFormPersistence<OnboardFormValues>({
@@ -160,6 +165,7 @@ export default function OnboardControls() {
 
     if (!trainNumber.trim() || !origin || !destination || !passengers) {
       toast.error('Veuillez remplir les champs obligatoires');
+      vibrateError();
       return;
     }
 
@@ -180,6 +186,12 @@ export default function OnboardControls() {
       commentaire,
       fraudCount,
     });
+
+    // Add train to recent list
+    addRecentTrain(trainNumber);
+    
+    // Haptic feedback on success
+    vibrateSuccess();
 
     toast.success('Contrôle enregistré !', {
       description: `Train ${trainNumber} - ${passengersNum} passagers, ${fraudCount} fraudes`,
@@ -271,11 +283,11 @@ export default function OnboardControls() {
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div className="space-y-2">
                     <Label htmlFor="trainNumber">Numéro de train *</Label>
-                    <Input
+                    <TrainNumberInput
                       id="trainNumber"
-                      placeholder="TGV 8541"
                       value={trainNumber}
-                      onChange={(e) => updateField('trainNumber', e.target.value)}
+                      onChange={(v) => updateField('trainNumber', v)}
+                      placeholder="TGV 8541"
                     />
                   </div>
                   <div className="space-y-2">

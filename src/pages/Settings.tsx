@@ -3,11 +3,12 @@ import {
   User, Palette, Bell, Info, 
   Moon, Sun, Monitor, 
   Check, ShieldCheck,
-  Navigation as NavigationIcon, GripVertical, Bug, Sparkles
+  Navigation as NavigationIcon, GripVertical, Bug, Sparkles, Vibrate
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme, THEME_OPTIONS, Theme } from '@/contexts/ThemeContext';
 import { useReleaseNotes } from '@/hooks/useReleaseNotes';
+import { useHapticFeedback } from '@/hooks/useHapticFeedback';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -56,6 +57,7 @@ export default function Settings() {
   const { user, refreshUserRole } = useAuth();
   const { theme, setTheme } = useTheme();
   const { latestVersion, loading: loadingVersion } = useReleaseNotes();
+  const { isEnabled: hapticEnabled, isSupported: hapticSupported, setEnabled: setHapticEnabled } = useHapticFeedback();
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [defaultPage, setDefaultPage] = useState('/');
   const [pageOrder, setPageOrder] = useState<string[]>(['dashboard', 'onboard', 'station', 'history', 'settings']);
@@ -373,10 +375,10 @@ export default function Settings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Bell className="h-5 w-5 text-primary" />
-            Notifications
+            Notifications & Retour haptique
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <button
             onClick={handleNotificationToggle}
             className={cn(
@@ -400,6 +402,35 @@ export default function Settings() {
               )} />
             </div>
           </button>
+
+          {hapticSupported && (
+            <button
+              onClick={() => setHapticEnabled(!hapticEnabled)}
+              className={cn(
+                'flex w-full items-center justify-between rounded-lg border p-4 transition-all',
+                hapticEnabled 
+                  ? 'border-primary bg-primary/10' 
+                  : 'border-border hover:border-primary/50'
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <Vibrate className={cn('h-5 w-5', hapticEnabled ? 'text-primary' : 'text-muted-foreground')} />
+                <div className="text-left">
+                  <span className="block">Vibration de confirmation</span>
+                  <span className="text-xs text-muted-foreground">Retour haptique lors des validations</span>
+                </div>
+              </div>
+              <div className={cn(
+                'flex h-6 w-11 items-center rounded-full p-1 transition-colors',
+                hapticEnabled ? 'bg-primary' : 'bg-muted'
+              )}>
+                <div className={cn(
+                  'h-4 w-4 rounded-full bg-background transition-transform',
+                  hapticEnabled ? 'translate-x-5' : 'translate-x-0'
+                )} />
+              </div>
+            </button>
+          )}
         </CardContent>
       </Card>
 
