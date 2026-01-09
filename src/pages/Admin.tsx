@@ -20,10 +20,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { 
   Shield, Users, RefreshCw, Crown, UserCog, User as UserIcon, 
-  Download, Search, Filter, History, Key, X, Database, Upload, Trash2, Bug, Sparkles, Plus, Settings2, FileText, UserX, Ban, RotateCcw
+  Download, Search, Filter, History, Key, X, Database, Upload, Trash2, Bug, Sparkles, Plus, Settings2, FileText, UserX, Ban, RotateCcw, ShieldAlert
 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { AuditLogsTab } from '@/components/admin/AuditLogsTab';
+import { SecurityDashboard } from '@/components/admin/SecurityDashboard';
 
 type AppRole = 'admin' | 'manager' | 'agent';
 
@@ -407,6 +408,10 @@ export default function Admin() {
             <Users className="h-4 w-4" />
             Utilisateurs
           </TabsTrigger>
+          <TabsTrigger value="security" className="gap-2">
+            <ShieldAlert className="h-4 w-4" />
+            Sécurité
+          </TabsTrigger>
           <TabsTrigger value="history" className="gap-2">
             <History className="h-4 w-4" />
             Historique des rôles
@@ -601,7 +606,7 @@ export default function Admin() {
                                   </DialogContent>
                                 </Dialog>
                                 
-                                {/* Suspend/Reactivate Button */}
+                                {/* Suspend Button */}
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
                                     <Button 
@@ -625,6 +630,38 @@ export default function Admin() {
                                       <AlertDialogCancel>Annuler</AlertDialogCancel>
                                       <AlertDialogAction onClick={() => handleUserAction(u.id, 'suspend')}>
                                         Suspendre
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+
+                                {/* Reactivate Button */}
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button 
+                                      variant="outline" 
+                                      size="icon"
+                                      disabled={isCurrentUser || managingUser === u.id}
+                                      title="Réactiver le compte"
+                                      className="text-green-600 hover:text-green-700"
+                                    >
+                                      <RotateCcw className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Réactiver ce compte ?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        L'utilisateur <strong>{u.full_name || u.email}</strong> pourra à nouveau se connecter.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                      <AlertDialogAction 
+                                        onClick={() => handleUserAction(u.id, 'reactivate')}
+                                        className="bg-green-600 text-white hover:bg-green-700"
+                                      >
+                                        Réactiver
                                       </AlertDialogAction>
                                     </AlertDialogFooter>
                                   </AlertDialogContent>
@@ -672,6 +709,10 @@ export default function Admin() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="security">
+          <SecurityDashboard />
         </TabsContent>
 
         <TabsContent value="history">
