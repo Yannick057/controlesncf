@@ -14,11 +14,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { 
   UserCog, Users, RefreshCw, User as UserIcon, 
-  Search, Filter, History, Key, X, BarChart3, Download, FileText, MessageSquare, TrendingUp
+  Search, Filter, History, Key, X, BarChart3, Download, FileText, MessageSquare, TrendingUp, FileDown, Globe
 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { TeamNotesPanel } from '@/components/features/TeamNotesPanel';
 import { AgentPerformanceCharts } from '@/components/dashboard/AgentPerformanceCharts';
+import { FraudHeatmap } from '@/components/dashboard/FraudHeatmap';
+import { generatePDFReport, openHTMLReport } from '@/utils/generateReport';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -396,10 +398,67 @@ export default function Manager() {
           </h1>
           <p className="text-muted-foreground">Gérez les agents et managers de votre équipe</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={exportAgentReport}>
-            <FileText className="mr-2 h-4 w-4" />
-            Rapport PDF
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => {
+            const today = new Date().toLocaleDateString('fr-FR');
+            generatePDFReport({
+              title: 'Rapport journalier',
+              period: today,
+              onboardControls: onboardControls.map(c => ({
+                trainNumber: c.trainNumber,
+                origin: c.origin,
+                destination: c.destination,
+                date: c.date,
+                time: c.time,
+                passengers: c.passengers,
+                fraudCount: c.fraudCount,
+                fraudRate: c.fraudRate,
+              })),
+              stationControls: stationControls.map(c => ({
+                station_name: c.stationName,
+                origin: c.origin,
+                destination: c.destination,
+                date: c.date,
+                time: c.time,
+                passengers: c.passengers,
+                fraudCount: c.fraudCount,
+                fraudRate: c.fraudRate,
+              })),
+            });
+            toast.success('Rapport PDF généré');
+          }}>
+            <FileDown className="mr-2 h-4 w-4" />
+            PDF
+          </Button>
+          <Button variant="outline" onClick={() => {
+            const today = new Date().toLocaleDateString('fr-FR');
+            openHTMLReport({
+              title: 'Rapport journalier',
+              period: today,
+              onboardControls: onboardControls.map(c => ({
+                trainNumber: c.trainNumber,
+                origin: c.origin,
+                destination: c.destination,
+                date: c.date,
+                time: c.time,
+                passengers: c.passengers,
+                fraudCount: c.fraudCount,
+                fraudRate: c.fraudRate,
+              })),
+              stationControls: stationControls.map(c => ({
+                station_name: c.stationName,
+                origin: c.origin,
+                destination: c.destination,
+                date: c.date,
+                time: c.time,
+                passengers: c.passengers,
+                fraudCount: c.fraudCount,
+                fraudRate: c.fraudRate,
+              })),
+            });
+          }}>
+            <Globe className="mr-2 h-4 w-4" />
+            HTML
           </Button>
           <Button variant="outline" onClick={() => { fetchUsers(); fetchRoleHistory(); }} disabled={loading}>
             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -632,7 +691,27 @@ export default function Manager() {
           <TeamNotesPanel />
         </TabsContent>
 
-        <TabsContent value="stats">
+        <TabsContent value="stats" className="space-y-6">
+          {/* Fraud Heatmap */}
+          <FraudHeatmap 
+            onboardControls={onboardControls.map(c => ({
+              origin: c.origin,
+              destination: c.destination,
+              fraudRate: c.fraudRate,
+              fraudCount: c.fraudCount,
+              passengers: c.passengers,
+            }))}
+            stationControls={stationControls.map(c => ({
+              station_name: c.stationName,
+              origin: c.origin,
+              destination: c.destination,
+              fraudRate: c.fraudRate,
+              fraudCount: c.fraudCount,
+              passengers: c.passengers,
+            }))}
+          />
+
+          {/* Existing charts */}
           <div className="grid gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
