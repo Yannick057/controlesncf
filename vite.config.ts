@@ -11,11 +11,15 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
   },
+  optimizeDeps: {
+    include: ['react', 'react-dom'],
+  },
   plugins: [
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: 'auto',
       includeAssets: ['favicon.ico', 'icon-192.png', 'icon-512.png'],
       manifest: {
         name: 'SNCF Contrôles',
@@ -58,7 +62,7 @@ export default defineConfig(({ mode }) => ({
               cacheName: 'supabase-api-cache',
               expiration: {
                 maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 // 24 heures
+                maxAgeSeconds: 60 * 60 * 24
               },
               cacheableResponse: {
                 statuses: [0, 200]
@@ -67,6 +71,9 @@ export default defineConfig(({ mode }) => ({
             }
           }
         ]
+      },
+      devOptions: {
+        enabled: false
       }
     })
   ].filter(Boolean),
