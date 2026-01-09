@@ -20,7 +20,7 @@ import { Navigate } from 'react-router-dom';
 import { TeamNotesPanel } from '@/components/features/TeamNotesPanel';
 import { AgentPerformanceCharts } from '@/components/dashboard/AgentPerformanceCharts';
 import { FraudHeatmap } from '@/components/dashboard/FraudHeatmap';
-import { generatePDFReport, openHTMLReport } from '@/utils/generateReport';
+import { ReportGeneratorDialog } from '@/components/features/ReportGeneratorDialog';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -399,67 +399,34 @@ export default function Manager() {
           <p className="text-muted-foreground">Gérez les agents et managers de votre équipe</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => {
-            const today = new Date().toLocaleDateString('fr-FR');
-            generatePDFReport({
-              title: 'Rapport journalier',
-              period: today,
-              onboardControls: onboardControls.map(c => ({
-                trainNumber: c.trainNumber,
-                origin: c.origin,
-                destination: c.destination,
-                date: c.date,
-                time: c.time,
-                passengers: c.passengers,
-                fraudCount: c.fraudCount,
-                fraudRate: c.fraudRate,
-              })),
-              stationControls: stationControls.map(c => ({
-                station_name: c.stationName,
-                origin: c.origin,
-                destination: c.destination,
-                date: c.date,
-                time: c.time,
-                passengers: c.passengers,
-                fraudCount: c.fraudCount,
-                fraudRate: c.fraudRate,
-              })),
-            });
-            toast.success('Rapport PDF généré');
-          }}>
-            <FileDown className="mr-2 h-4 w-4" />
-            PDF
-          </Button>
-          <Button variant="outline" onClick={() => {
-            const today = new Date().toLocaleDateString('fr-FR');
-            openHTMLReport({
-              title: 'Rapport journalier',
-              period: today,
-              onboardControls: onboardControls.map(c => ({
-                trainNumber: c.trainNumber,
-                origin: c.origin,
-                destination: c.destination,
-                date: c.date,
-                time: c.time,
-                passengers: c.passengers,
-                fraudCount: c.fraudCount,
-                fraudRate: c.fraudRate,
-              })),
-              stationControls: stationControls.map(c => ({
-                station_name: c.stationName,
-                origin: c.origin,
-                destination: c.destination,
-                date: c.date,
-                time: c.time,
-                passengers: c.passengers,
-                fraudCount: c.fraudCount,
-                fraudRate: c.fraudRate,
-              })),
-            });
-          }}>
-            <Globe className="mr-2 h-4 w-4" />
-            HTML
-          </Button>
+          <ReportGeneratorDialog
+            onboardControls={onboardControls.map(c => ({
+              trainNumber: c.trainNumber,
+              origin: c.origin,
+              destination: c.destination,
+              date: c.date,
+              time: c.time,
+              passengers: c.passengers,
+              fraudCount: c.fraudCount,
+              fraudRate: c.fraudRate,
+            }))}
+            stationControls={stationControls.map(c => ({
+              stationName: c.stationName,
+              origin: c.origin,
+              destination: c.destination,
+              date: c.date,
+              time: c.time,
+              passengers: c.passengers,
+              fraudCount: c.fraudCount,
+              fraudRate: c.fraudRate,
+            }))}
+            trigger={
+              <Button variant="outline">
+                <FileText className="mr-2 h-4 w-4" />
+                Rapport
+              </Button>
+            }
+          />
           <Button variant="outline" onClick={() => { fetchUsers(); fetchRoleHistory(); }} disabled={loading}>
             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Actualiser
