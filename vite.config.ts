@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => ({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
-      includeAssets: ['favicon.ico', 'icon-192.png', 'icon-512.png'],
+      includeAssets: ['favicon.ico', 'logo.png'],
       manifest: {
         name: 'SNCF Contrôles',
         short_name: 'Contrôles',
@@ -32,18 +32,13 @@ export default defineConfig(({ mode }) => ({
         orientation: 'portrait-primary',
         icons: [
           {
-            src: '/favicon.ico',
-            sizes: '64x64',
-            type: 'image/x-icon'
-          },
-          {
-            src: '/icon-192.png',
+            src: '/logo.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any maskable'
           },
           {
-            src: '/icon-512.png',
+            src: '/logo.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'
