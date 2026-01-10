@@ -23,7 +23,26 @@ const ACTION_LABELS: Record<string, string> = {
   role_change: "Changement de rôle admin",
 };
 
-async function sendEmail(to: string[], subject: string, html: string) {
+async function getSenderDomain(supabase: any): Promise<string> {
+  try {
+    const { data, error } = await supabase
+      .from("email_settings")
+      .select("setting_value")
+      .eq("setting_key", "sender_domain")
+      .single();
+
+    if (error || !data) {
+      console.log("Using default sender domain");
+      return "onboarding@resend.dev";
+    }
+    return data.setting_value;
+  } catch (e) {
+    console.error("Error fetching sender domain:", e);
+    return "onboarding@resend.dev";
+  }
+}
+
+async function sendEmail(to: string[], subject: string, html: string, from: string) {
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -31,7 +50,7 @@ async function sendEmail(to: string[], subject: string, html: string) {
       Authorization: `Bearer ${RESEND_API_KEY}`,
     },
     body: JSON.stringify({
-      from: "SNCF Contrôles <onboarding@resend.dev>",
+      from,
       to,
       subject,
       html,
@@ -143,6 +162,11 @@ serve(async (req: Request): Promise<Response> => {
 
     console.log(`Sending notification to ${adminEmails.length} admin(s):`, adminEmails);
 
+    // Get custom sender domain
+    const senderDomain = await getSenderDomain(supabase);
+    const fromAddress = `SNCF Contrôles <${senderDomain}>`;
+    console.log("Using sender address:", fromAddress);
+
     const actionLabel = ACTION_LABELS[action] || action;
     const timestamp = new Date().toLocaleString("fr-FR", { 
       dateStyle: "long", 
@@ -211,7 +235,8 @@ serve(async (req: Request): Promise<Response> => {
     const emailResponse = await sendEmail(
       adminEmails,
       `🔔 Alerte Sécurité: ${actionLabel}`,
-      emailHtml
+      emailHtml,
+      fromAddress
     );
 
     console.log("Email sent successfully:", emailResponse);

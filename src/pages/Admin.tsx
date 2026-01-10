@@ -25,6 +25,7 @@ import {
 import { Navigate } from 'react-router-dom';
 import { AuditLogsTab } from '@/components/admin/AuditLogsTab';
 import { SecurityDashboard } from '@/components/admin/SecurityDashboard';
+import { EmailSettingsCard } from '@/components/admin/EmailSettingsCard';
 
 type AppRole = 'admin' | 'manager' | 'agent';
 
@@ -982,34 +983,38 @@ export default function Admin() {
         </TabsContent>
 
         <TabsContent value="features">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings2 className="h-5 w-5 text-primary" />
-                Fonctionnalités
-              </CardTitle>
-              <CardDescription>
-                Activez ou désactivez les fonctionnalités pour les managers
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between rounded-lg border p-4">
-                <div className="space-y-1">
-                  <Label htmlFor="agent-perf" className="text-base font-medium">
-                    Graphiques de performance par agent
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    Affiche les statistiques de performance détaillées par agent sur la page Manager
-                  </p>
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings2 className="h-5 w-5 text-primary" />
+                  Fonctionnalités
+                </CardTitle>
+                <CardDescription>
+                  Activez ou désactivez les fonctionnalités pour les managers
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="agent-perf" className="text-base font-medium">
+                      Graphiques de performance par agent
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Affiche les statistiques de performance détaillées par agent sur la page Manager
+                    </p>
+                  </div>
+                  <Switch
+                    id="agent-perf"
+                    checked={featureSettings.agent_performance_charts}
+                    onCheckedChange={(checked) => toggleFeature('agent_performance_charts', checked)}
+                  />
                 </div>
-                <Switch
-                  id="agent-perf"
-                  checked={featureSettings.agent_performance_charts}
-                  onCheckedChange={(checked) => toggleFeature('agent_performance_charts', checked)}
-                />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+
+            <EmailSettingsCard />
+          </div>
         </TabsContent>
       </Tabs>
     </div>
