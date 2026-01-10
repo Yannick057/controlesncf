@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Train, Mail, Lock, AlertCircle, User } from 'lucide-react';
+import { Mail, Lock, AlertCircle, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,8 +59,12 @@ export default function LoginPage() {
 
       <Card className="relative w-full max-w-md animate-scale-in shadow-2xl">
         <CardHeader className="space-y-4 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30 animate-pulse-glow">
-            <Train className="h-8 w-8" />
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-card shadow-lg shadow-primary/30 animate-pulse-glow overflow-hidden">
+            <img 
+              src="/logo.png" 
+              alt="Logo SNCF Contrôles" 
+              className="h-16 w-16 object-contain"
+            />
           </div>
           <div>
             <CardTitle className="text-2xl font-bold">SNCF Contrôles</CardTitle>
