@@ -144,6 +144,25 @@ export default function Admin() {
     }
   };
 
+  const notifyAdmins = async (action: 'suspension' | 'deletion' | 'role_change', targetUser: UserWithRole, details?: string) => {
+    try {
+      await supabase.functions.invoke('notify-admins', {
+        body: {
+          action,
+          targetUserEmail: targetUser.email,
+          targetUserName: targetUser.full_name,
+          performedByEmail: user?.email,
+          performedByName: user?.email?.split('@')[0],
+          details,
+        },
+      });
+      console.log('Admin notification sent');
+    } catch (error) {
+      console.error('Error sending admin notification:', error);
+      // Don't throw - notification failure shouldn't block the action
+    }
+  };
+
   const updateUserRole = async (userId: string, newRole: AppRole) => {
     if (userId === user?.id) {
       toast.error('Vous ne pouvez pas modifier votre propre rôle');
@@ -190,6 +209,11 @@ export default function Admin() {
 
       toast.success(`Rôle mis à jour: ${ROLE_CONFIG[newRole].label}`);
       fetchRoleHistory();
+
+      // Send admin notification for role change to admin
+      if (newRole === 'admin' && targetUser) {
+        await notifyAdmins('role_change', targetUser, `Nouveau rôle: ${ROLE_CONFIG[newRole].label} (ancien: ${oldRole ? ROLE_CONFIG[oldRole].label : 'Aucun'})`);
+      }
     } catch (error) {
       console.error('Error updating role:', error);
       toast.error('Erreur lors de la mise à jour du rôle');
@@ -231,6 +255,8 @@ export default function Admin() {
   };
 
   const handleUserAction = async (userId: string, action: 'delete' | 'suspend' | 'reactivate') => {
+    const targetUser = users.find(u => u.id === userId);
+    
     setManagingUser(userId);
     try {
       const response = await supabase.functions.invoke('manage-user', {
@@ -248,6 +274,12 @@ export default function Admin() {
       };
 
       toast.success(`Compte ${actionLabels[action]} avec succès`);
+      
+      // Send admin notification for sensitive actions
+      if (targetUser && (action === 'delete' || action === 'suspend')) {
+        const notifyAction = action === 'delete' ? 'deletion' : 'suspension';
+        await notifyAdmins(notifyAction, targetUser);
+      }
       
       if (action === 'delete') {
         setUsers(prev => prev.filter(u => u.id !== userId));
