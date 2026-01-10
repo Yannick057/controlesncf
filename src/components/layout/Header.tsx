@@ -1,4 +1,4 @@
-import { Train, LogOut } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { OfflineIndicator } from '@/components/dashboard/OfflineIndicator';
@@ -10,9 +10,11 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-lg shadow-primary/30">
-            <Train className="h-5 w-5" />
-          </div>
+          <img 
+            src="/logo.png" 
+            alt="Logo SNCF Contrôles" 
+            className="h-10 w-10 rounded-lg object-contain"
+          />
           <div className="flex flex-col">
             <span className="text-lg font-bold tracking-tight">SNCF Contrôles</span>
             <span className="text-xs text-muted-foreground">Gestion des contrôles</span>
