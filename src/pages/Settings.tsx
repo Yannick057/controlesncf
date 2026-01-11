@@ -4,7 +4,7 @@ import {
   User, Palette, Bell, Info, 
   Moon, Sun, Monitor, 
   Check, ShieldCheck,
-  Navigation as NavigationIcon, GripVertical, Bug, Sparkles, Vibrate, Rocket
+  Navigation as NavigationIcon, GripVertical, Bug, Sparkles, Vibrate, Rocket, Eye, EyeOff, Lock
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme, THEME_OPTIONS, Theme } from '@/contexts/ThemeContext';
@@ -48,11 +48,11 @@ const PAGE_OPTIONS = [
 ];
 
 const PAGE_ORDER_OPTIONS = [
-  { id: 'dashboard', label: 'Dashboard', path: '/' },
-  { id: 'onboard', label: 'À Bord', path: '/onboard' },
-  { id: 'station', label: 'En Gare', path: '/station' },
-  { id: 'history', label: 'Historique', path: '/history' },
-  { id: 'settings', label: 'Paramètres', path: '/settings' },
+  { id: 'dashboard', label: 'Dashboard', path: '/', canHide: true },
+  { id: 'onboard', label: 'À Bord', path: '/onboard', canHide: true },
+  { id: 'station', label: 'En Gare', path: '/station', canHide: true },
+  { id: 'history', label: 'Historique', path: '/history', canHide: true },
+  { id: 'settings', label: 'Paramètres', path: '/settings', canHide: false }, // Non désactivable
 ];
 
 export default function Settings() {
@@ -65,6 +65,7 @@ export default function Settings() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [defaultPage, setDefaultPage] = useState('/');
   const [pageOrder, setPageOrder] = useState<string[]>(['dashboard', 'onboard', 'station', 'history', 'settings']);
+  const [hiddenPages, setHiddenPages] = useState<string[]>([]);
   const [savingPreferences, setSavingPreferences] = useState(false);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
 
@@ -85,7 +86,7 @@ export default function Settings() {
     try {
       const { data, error } = await supabase
         .from('user_preferences')
-        .select('default_page, page_order')
+        .select('default_page, page_order, hidden_pages')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -99,14 +100,24 @@ export default function Settings() {
         if (data.page_order && Array.isArray(data.page_order)) {
           setPageOrder(data.page_order as string[]);
         }
+        if (data.hidden_pages && Array.isArray(data.hidden_pages)) {
+          setHiddenPages(data.hidden_pages as string[]);
+          localStorage.setItem('user_hidden_pages', JSON.stringify(data.hidden_pages));
+        }
       } else {
         // Load from localStorage as fallback
         const savedPage = localStorage.getItem('user_default_page');
         const savedOrder = localStorage.getItem('user_page_order');
+        const savedHidden = localStorage.getItem('user_hidden_pages');
         if (savedPage) setDefaultPage(savedPage);
         if (savedOrder) {
           try {
             setPageOrder(JSON.parse(savedOrder));
+          } catch {}
+        }
+        if (savedHidden) {
+          try {
+            setHiddenPages(JSON.parse(savedHidden));
           } catch {}
         }
       }
@@ -143,6 +154,7 @@ export default function Settings() {
           .update({ 
             default_page: defaultPage, 
             page_order: pageOrder,
+            hidden_pages: hiddenPages,
             updated_at: new Date().toISOString()
           })
           .eq('user_id', user.id);
@@ -153,7 +165,8 @@ export default function Settings() {
           .insert({ 
             user_id: user.id, 
             default_page: defaultPage, 
-            page_order: pageOrder 
+            page_order: pageOrder,
+            hidden_pages: hiddenPages
           });
         saveError = error;
       }
@@ -166,6 +179,7 @@ export default function Settings() {
       // Save to localStorage for quick access
       localStorage.setItem('user_default_page', defaultPage);
       localStorage.setItem('user_page_order', JSON.stringify(pageOrder));
+      localStorage.setItem('user_hidden_pages', JSON.stringify(hiddenPages));
 
       toast.success('Préférences de navigation enregistrées');
     } catch (error) {
@@ -173,6 +187,14 @@ export default function Settings() {
       toast.error('Erreur lors de la sauvegarde des préférences');
     } finally {
       setSavingPreferences(false);
+    }
+  };
+
+  const togglePageVisibility = (pageId: string) => {
+    if (hiddenPages.includes(pageId)) {
+      setHiddenPages(hiddenPages.filter(p => p !== pageId));
+    } else {
+      setHiddenPages([...hiddenPages, pageId]);
     }
   };
 
@@ -285,18 +307,74 @@ export default function Settings() {
           </div>
 
           <div className="space-y-2">
+            <label className="text-sm font-medium">Visibilité des pages</label>
+            <p className="text-xs text-muted-foreground mb-2">
+              Activez ou désactivez les pages dans la navigation
+            </p>
+            <div className="space-y-2">
+              {PAGE_ORDER_OPTIONS.map((page) => {
+                const isHidden = hiddenPages.includes(page.id);
+                const canToggle = page.canHide;
+                return (
+                  <button
+                    key={page.id}
+                    onClick={() => canToggle && togglePageVisibility(page.id)}
+                    disabled={!canToggle}
+                    className={cn(
+                      'flex w-full items-center justify-between rounded-lg border p-3 transition-all',
+                      !canToggle 
+                        ? 'border-border bg-muted/30 cursor-not-allowed opacity-60' 
+                        : isHidden 
+                          ? 'border-border hover:border-primary/50' 
+                          : 'border-primary bg-primary/10'
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      {isHidden ? (
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-primary" />
+                      )}
+                      <span className={cn(isHidden && 'text-muted-foreground')}>{page.label}</span>
+                      {!canToggle && (
+                        <Lock className="h-3 w-3 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className={cn(
+                      'flex h-6 w-11 items-center rounded-full p-1 transition-colors',
+                      !canToggle ? 'bg-primary' : isHidden ? 'bg-muted' : 'bg-primary'
+                    )}>
+                      <div className={cn(
+                        'h-4 w-4 rounded-full bg-background transition-transform',
+                        !canToggle || !isHidden ? 'translate-x-5' : 'translate-x-0'
+                      )} />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-2">
             <label className="text-sm font-medium">Ordre des pages</label>
             <div className="space-y-2">
               {pageOrder.map((pageId, index) => {
                 const page = PAGE_ORDER_OPTIONS.find(p => p.id === pageId);
                 if (!page) return null;
+                const isHidden = hiddenPages.includes(page.id);
                 return (
                   <div 
                     key={pageId}
-                    className="flex items-center gap-2 rounded-lg border border-border bg-card p-3"
+                    className={cn(
+                      "flex items-center gap-2 rounded-lg border border-border bg-card p-3",
+                      isHidden && "opacity-50"
+                    )}
                   >
                     <GripVertical className="h-4 w-4 text-muted-foreground" />
                     <span className="flex-1 font-medium">{page.label}</span>
+                    {isHidden && (
+                      <span className="text-xs text-muted-foreground">(masquée)</span>
+                    )}
                     <div className="flex gap-1">
                       <Button 
                         variant="ghost" 

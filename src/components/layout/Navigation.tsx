@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useTeamNotes } from '@/hooks/useTeamNotes';
+import { supabase } from '@/integrations/supabase/client';
 
 interface NavItem {
   id: string;
@@ -22,11 +23,12 @@ const ALL_NAV_ITEMS: NavItem[] = [
 ];
 
 const adminNavItem: NavItem = { id: 'admin', to: '/admin', icon: Shield, label: 'Admin' };
-const managerNavItem: NavItem = { id: 'manager', to: '/manager', icon: UserCog, label: 'Équipe' };
+const managerNavItem: NavItem = { id: 'manager', to: '/manager', icon: UserCog, label: 'Manager' };
 
 export function Navigation() {
   const { user } = useAuth();
   const [pageOrder, setPageOrder] = useState<string[]>(['dashboard', 'onboard', 'station', 'history', 'settings']);
+  const [hiddenPages, setHiddenPages] = useState<string[]>([]);
 
   useEffect(() => {
     const savedOrder = localStorage.getItem('user_page_order');
@@ -37,17 +39,43 @@ export function Navigation() {
         // Keep default order
       }
     }
-  }, []);
 
-  // Reorder nav items based on user preference
+    // Load hidden pages
+    const savedHidden = localStorage.getItem('user_hidden_pages');
+    if (savedHidden) {
+      try {
+        setHiddenPages(JSON.parse(savedHidden));
+      } catch {
+        // Keep empty
+      }
+    }
+
+    // Also load from database if user is logged in
+    if (user?.id) {
+      supabase
+        .from('user_preferences')
+        .select('hidden_pages')
+        .eq('user_id', user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.hidden_pages) {
+            setHiddenPages(data.hidden_pages as string[]);
+            localStorage.setItem('user_hidden_pages', JSON.stringify(data.hidden_pages));
+          }
+        });
+    }
+  }, [user?.id]);
+
+  // Reorder nav items based on user preference, filter out hidden pages
   const orderedNavItems = pageOrder
     .map(id => ALL_NAV_ITEMS.find(item => item.id === id))
-    .filter((item): item is NavItem => item !== undefined);
+    .filter((item): item is NavItem => item !== undefined)
+    .filter(item => !hiddenPages.includes(item.id));
 
-  // Add role-specific items
+  // Add role-specific items (manager and admin pages can't be hidden)
   let navItems = [...orderedNavItems];
   if (user?.role === 'admin') {
-    navItems.push(managerNavItem); // Admin can access manager page
+    navItems.push(managerNavItem);
     navItems.push(adminNavItem);
   } else if (user?.role === 'manager') {
     navItems.push(managerNavItem);
@@ -84,6 +112,7 @@ export function MobileNavigation() {
   const { user } = useAuth();
   const { unreadCount } = useTeamNotes();
   const [pageOrder, setPageOrder] = useState<string[]>(['dashboard', 'onboard', 'station', 'history', 'settings']);
+  const [hiddenPages, setHiddenPages] = useState<string[]>([]);
 
   useEffect(() => {
     const savedOrder = localStorage.getItem('user_page_order');
@@ -94,17 +123,43 @@ export function MobileNavigation() {
         // Keep default order
       }
     }
-  }, []);
 
-  // Reorder nav items based on user preference
+    // Load hidden pages
+    const savedHidden = localStorage.getItem('user_hidden_pages');
+    if (savedHidden) {
+      try {
+        setHiddenPages(JSON.parse(savedHidden));
+      } catch {
+        // Keep empty
+      }
+    }
+
+    // Also load from database if user is logged in
+    if (user?.id) {
+      supabase
+        .from('user_preferences')
+        .select('hidden_pages')
+        .eq('user_id', user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.hidden_pages) {
+            setHiddenPages(data.hidden_pages as string[]);
+            localStorage.setItem('user_hidden_pages', JSON.stringify(data.hidden_pages));
+          }
+        });
+    }
+  }, [user?.id]);
+
+  // Reorder nav items based on user preference, filter out hidden pages
   const orderedNavItems = pageOrder
     .map(id => ALL_NAV_ITEMS.find(item => item.id === id))
-    .filter((item): item is NavItem => item !== undefined);
+    .filter((item): item is NavItem => item !== undefined)
+    .filter(item => !hiddenPages.includes(item.id));
 
-  // Add role-specific items
+  // Add role-specific items (manager and admin pages can't be hidden)
   let navItems = [...orderedNavItems];
   if (user?.role === 'admin') {
-    navItems.push(managerNavItem); // Admin can access manager page
+    navItems.push(managerNavItem);
     navItems.push(adminNavItem);
   } else if (user?.role === 'manager') {
     navItems.push(managerNavItem);

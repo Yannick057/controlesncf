@@ -447,6 +447,7 @@ export type Database = {
         Row: {
           created_at: string
           default_page: string
+          hidden_pages: string[] | null
           id: string
           page_order: Json
           updated_at: string
@@ -455,6 +456,7 @@ export type Database = {
         Insert: {
           created_at?: string
           default_page?: string
+          hidden_pages?: string[] | null
           id?: string
           page_order?: Json
           updated_at?: string
@@ -463,6 +465,7 @@ export type Database = {
         Update: {
           created_at?: string
           default_page?: string
+          hidden_pages?: string[] | null
           id?: string
           page_order?: Json
           updated_at?: string
