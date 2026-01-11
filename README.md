@@ -87,12 +87,23 @@ Application web progressive (PWA) pour la gestion des contrôles voyageurs SNCF,
 - Configuration du seuil d'alerte
 - Notifications par email aux administrateurs
 - Paramètres personnalisables
+- **Notification de mise à jour** : Alerte automatique lors d'une nouvelle version
+- **Badge "Nouveau"** : Indicateur visuel sur le bouton Changelog
 
 ### 📝 Notes d'Équipe
 
 - Envoi de messages entre agents
 - Suivi des notes lues/non lues
 - Communication interne simplifiée
+
+### 📋 Changelog
+
+- **Page dédiée** accessible via `/changelog`
+- Timeline visuelle des versions
+- Filtrage par version majeure
+- Recherche textuelle dans les notes
+- Sections dépliables/repliables
+- Légende des types de changements (Ajouté, Modifié, Corrigé, Sécurité...)
 
 ---
 
@@ -869,6 +880,7 @@ VITE_SUPABASE_PROJECT_ID=hpbkpsofyxlacnskeukv
 | `/station` | Contrôles en gare | Saisie des contrôles gare | Authentifié |
 | `/history` | Historique | Liste de tous les contrôles | Authentifié |
 | `/settings` | Paramètres | Configuration utilisateur | Authentifié |
+| `/changelog` | Changelog | Historique des versions | Authentifié |
 | `/manager` | Gestion équipe | Vue manager avancée | Manager+ |
 | `/admin` | Administration | Gestion utilisateurs, audit | Admin |
 

@@ -9,6 +9,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme, THEME_OPTIONS, Theme } from '@/contexts/ThemeContext';
 import { useReleaseNotes } from '@/hooks/useReleaseNotes';
+import { useVersionNotification } from '@/hooks/useVersionNotification';
 import { useHapticFeedback } from '@/hooks/useHapticFeedback';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -59,6 +60,7 @@ export default function Settings() {
   const { user, refreshUserRole } = useAuth();
   const { theme, setTheme } = useTheme();
   const { latestVersion, loading: loadingVersion } = useReleaseNotes();
+  const { hasNewVersion, markChangelogViewed } = useVersionNotification();
   const { isEnabled: hapticEnabled, isSupported: hapticSupported, setEnabled: setHapticEnabled } = useHapticFeedback();
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [defaultPage, setDefaultPage] = useState('/');
@@ -461,9 +463,21 @@ export default function Settings() {
                 Notes de version
               </Button>
             </ReleaseNotesDialog>
-            <Button variant="outline" onClick={() => navigate('/changelog')}>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                markChangelogViewed();
+                navigate('/changelog');
+              }}
+              className="relative"
+            >
               <Rocket className="mr-2 h-4 w-4" />
               Changelog complet
+              {hasNewVersion && (
+                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground animate-pulse">
+                  !
+                </span>
+              )}
             </Button>
           </div>
         </CardContent>

@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useVersionNotification } from '@/hooks/useVersionNotification';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { 
@@ -110,6 +111,12 @@ export default function Changelog() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedVersion, setSelectedVersion] = useState<string>('all');
   const [expandedVersions, setExpandedVersions] = useState<Set<string>>(new Set());
+  const { markChangelogViewed } = useVersionNotification();
+  
+  // Mark changelog as viewed when component mounts
+  useEffect(() => {
+    markChangelogViewed();
+  }, [markChangelogViewed]);
   
   const { data: releaseNotes, isLoading } = useQuery({
     queryKey: ['release-notes-all'],
