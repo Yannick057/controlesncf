@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { Header } from './Header';
 import { Navigation, MobileNavigation } from './Navigation';
+import { UpdateNotification } from '@/components/features/UpdateNotification';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -15,6 +16,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         {children}
       </main>
       <MobileNavigation />
+      <UpdateNotification />
     </div>
   );
 }
