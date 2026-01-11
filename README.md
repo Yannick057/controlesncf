@@ -200,6 +200,187 @@ supabase/
 
 ## 🗄 Schéma de Base de Données
 
+### 📊 Diagramme des Relations
+
+```mermaid
+erDiagram
+    AUTH_USERS {
+        uuid id PK
+        string email
+        string encrypted_password
+        timestamp created_at
+    }
+    
+    PROFILES {
+        uuid id PK,FK
+        text email
+        text full_name
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    
+    USER_ROLES {
+        uuid id PK
+        uuid user_id FK
+        app_role role
+        timestamptz created_at
+    }
+    
+    ONBOARD_CONTROLS {
+        uuid id PK
+        uuid user_id FK
+        text train_number
+        text origin
+        text destination
+        date control_date
+        time control_time
+        integer passengers
+        jsonb tarifs_bord
+        jsonb tarifs_controle
+        integer stt50_count
+        integer stt100_count
+        jsonb pv_list
+        integer ri_positif
+        integer ri_negatif
+        text commentaire
+        integer fraud_count
+        numeric fraud_rate
+        timestamptz created_at
+    }
+    
+    STATION_CONTROLS {
+        uuid id PK
+        uuid user_id FK
+        text station_name
+        text platform
+        text origin
+        text destination
+        date control_date
+        time control_time
+        integer passengers
+        jsonb tarifs_bord
+        jsonb tarifs_controle
+        integer stt50_count
+        integer stt100_count
+        jsonb pv_list
+        integer ri_positif
+        integer ri_negatif
+        text commentaire
+        integer fraud_count
+        numeric fraud_rate
+        timestamptz created_at
+    }
+    
+    USER_PREFERENCES {
+        uuid id PK
+        uuid user_id FK
+        text default_page
+        jsonb page_order
+        timestamptz created_at
+    }
+    
+    NOTIFICATION_SETTINGS {
+        uuid id PK
+        uuid user_id FK
+        boolean notifications_enabled
+        numeric fraud_threshold
+        timestamptz created_at
+    }
+    
+    TEAM_NOTES {
+        uuid id PK
+        uuid author_id FK
+        uuid recipient_id FK
+        text content
+        boolean is_read
+        timestamptz created_at
+    }
+    
+    AUDIT_LOGS {
+        uuid id PK
+        uuid user_id FK
+        text table_name
+        text action
+        uuid record_id
+        jsonb old_data
+        jsonb new_data
+        timestamptz created_at
+    }
+    
+    ROLE_HISTORY {
+        uuid id PK
+        uuid user_id FK
+        uuid changed_by FK
+        app_role old_role
+        app_role new_role
+        timestamptz created_at
+    }
+    
+    BUG_REPORTS {
+        uuid id PK
+        uuid user_id FK
+        text title
+        text description
+        text status
+        text priority
+        timestamptz created_at
+    }
+    
+    RELEASE_NOTES {
+        uuid id PK
+        text version
+        text title
+        text content
+        date release_date
+        timestamptz created_at
+    }
+    
+    REPORTS {
+        uuid id PK
+        uuid user_id FK
+        text type
+        text nom_gare
+        text voie
+        text description
+        text statut
+        timestamptz created_at
+    }
+    
+    ADMIN_FEATURE_SETTINGS {
+        uuid id PK
+        text feature_key
+        boolean enabled
+        uuid updated_by FK
+        timestamptz updated_at
+    }
+    
+    EMAIL_SETTINGS {
+        uuid id PK
+        text setting_key
+        text setting_value
+        uuid updated_by FK
+        timestamptz updated_at
+    }
+
+    AUTH_USERS ||--|| PROFILES : "has"
+    AUTH_USERS ||--o{ USER_ROLES : "has"
+    AUTH_USERS ||--o{ ONBOARD_CONTROLS : "creates"
+    AUTH_USERS ||--o{ STATION_CONTROLS : "creates"
+    AUTH_USERS ||--o| USER_PREFERENCES : "has"
+    AUTH_USERS ||--o| NOTIFICATION_SETTINGS : "has"
+    AUTH_USERS ||--o{ TEAM_NOTES : "sends"
+    AUTH_USERS ||--o{ TEAM_NOTES : "receives"
+    AUTH_USERS ||--o{ AUDIT_LOGS : "generates"
+    AUTH_USERS ||--o{ ROLE_HISTORY : "subject"
+    AUTH_USERS ||--o{ ROLE_HISTORY : "changed_by"
+    AUTH_USERS ||--o{ BUG_REPORTS : "submits"
+    AUTH_USERS ||--o{ REPORTS : "creates"
+    AUTH_USERS ||--o{ ADMIN_FEATURE_SETTINGS : "updates"
+    AUTH_USERS ||--o{ EMAIL_SETTINGS : "updates"
+```
+
+### 📋 Tables Principales
+
 ### Table `onboard_controls` (Contrôles à bord)
 
 | Colonne | Type | Nullable | Défaut | Description |
