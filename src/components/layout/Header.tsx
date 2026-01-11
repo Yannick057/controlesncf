@@ -5,6 +5,7 @@ import { useAdminFeatures } from '@/hooks/useAdminFeatures';
 import { Button } from '@/components/ui/button';
 import { OfflineIndicator } from '@/components/dashboard/OfflineIndicator';
 import { GlobalSearch } from '@/components/features/GlobalSearch';
+import { NotificationCenter } from '@/components/features/NotificationCenter';
 
 export function Header() {
   const { user, logout } = useAuth();
@@ -45,6 +46,7 @@ export function Header() {
           <div className="flex items-center gap-2 sm:gap-4">
             <OfflineIndicator />
             
+            <NotificationCenter />
             {settings.global_search && (
               <Button 
                 variant="outline" 
