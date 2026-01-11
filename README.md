@@ -21,6 +21,12 @@ Application web progressive (PWA) pour la gestion des contrôles voyageurs SNCF,
 
 ## 📱 Fonctionnalités
 
+### 🔍 Recherche Globale
+- Recherche instantanée dans toute l'application (Ctrl+K / Cmd+K)
+- Recherche dans les contrôles, utilisateurs et notes de version
+- Historique des recherches récentes
+- Résultats catégorisés avec navigation directe
+
 ### 🎫 Saisie des Contrôles
 
 #### Contrôles à Bord
@@ -79,6 +85,7 @@ Application web progressive (PWA) pour la gestion des contrôles voyageurs SNCF,
 - Réinitialisation des mots de passe
 - Statistiques de l'équipe
 - Notes d'équipe
+- **Export PDF des statistiques** : Génération de rapports PDF complets
 
 #### Fonctionnalités Admin
 - Création/modification/suppression d'utilisateurs
@@ -86,6 +93,8 @@ Application web progressive (PWA) pour la gestion des contrôles voyageurs SNCF,
 - Suspension de comptes
 - Historique des changements de rôles
 - Journal d'audit complet
+- **Création de notes de version** : Interface pour publier de nouvelles versions
+- **Toggles de fonctionnalités** : Activation/désactivation de chaque fonction du site pour tous les utilisateurs
 
 ### ⚙️ Préférences de Navigation
 

@@ -21,6 +21,7 @@ import { TeamNotesPanel } from '@/components/features/TeamNotesPanel';
 import { AgentPerformanceCharts } from '@/components/dashboard/AgentPerformanceCharts';
 import { FraudHeatmap } from '@/components/dashboard/FraudHeatmap';
 import { ReportGeneratorDialog } from '@/components/features/ReportGeneratorDialog';
+import { TeamStatsPDF } from '@/components/features/TeamStatsPDF';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -399,6 +400,24 @@ export default function Manager() {
           <p className="text-muted-foreground">Gérez les agents et managers de votre équipe</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {featureSettings.pdf_export_manager && (
+            <TeamStatsPDF 
+              stats={{
+                totalMembers: users.length,
+                managers: roleStats.manager,
+                agents: roleStats.agent,
+                totalOnboardControls: onboardControls.length,
+                totalStationControls: stationControls.length,
+                totalPassengers: onboardControls.reduce((sum, c) => sum + c.passengers, 0) + 
+                                 stationControls.reduce((sum, c) => sum + c.passengers, 0),
+                avgFraudRate: [...onboardControls, ...stationControls].length > 0
+                  ? [...onboardControls, ...stationControls].reduce((sum, c) => sum + c.fraudRate, 0) / 
+                    [...onboardControls, ...stationControls].length
+                  : 0,
+                topPerformers: [],
+              }}
+            />
+          )}
           <ReportGeneratorDialog
             onboardControls={onboardControls.map(c => ({
               trainNumber: c.trainNumber,
