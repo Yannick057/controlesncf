@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Palette, Trash2, Globe, Lock, Copy, Check, Loader2, Pencil } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Plus, Palette, Trash2, Globe, Lock, Copy, Check, Loader2, Pencil, Download, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +13,14 @@ import { useCustomThemes, CustomTheme } from '@/hooks/useCustomThemes';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+
+// Theme export format
+interface ThemeExport {
+  version: string;
+  name: string;
+  colors: CustomTheme['colors'];
+  exportedAt: string;
+}
 
 interface ColorInputProps {
   label: string;
@@ -94,6 +102,7 @@ function ThemeCard({
   onDuplicate,
   onTogglePublic,
   onEdit,
+  onExport,
 }: { 
   theme: CustomTheme;
   isActive: boolean;
@@ -103,6 +112,7 @@ function ThemeCard({
   onDuplicate: () => void;
   onTogglePublic?: () => void;
   onEdit?: () => void;
+  onExport?: () => void;
 }) {
   return (
     <div className={cn(
@@ -146,7 +156,7 @@ function ThemeCard({
         </div>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <Button 
           size="sm" 
           variant={isActive ? "default" : "outline"}
@@ -157,20 +167,25 @@ function ThemeCard({
           {isActive ? 'Actif' : 'Appliquer'}
         </Button>
         {isOwner && onEdit && (
-          <Button size="sm" variant="ghost" onClick={onEdit}>
+          <Button size="sm" variant="ghost" onClick={onEdit} title="Modifier">
             <Pencil className="h-4 w-4" />
           </Button>
         )}
-        <Button size="sm" variant="ghost" onClick={onDuplicate}>
+        <Button size="sm" variant="ghost" onClick={onDuplicate} title="Dupliquer">
           <Copy className="h-4 w-4" />
         </Button>
+        {onExport && (
+          <Button size="sm" variant="ghost" onClick={onExport} title="Exporter">
+            <Download className="h-4 w-4" />
+          </Button>
+        )}
         {isOwner && onTogglePublic && (
-          <Button size="sm" variant="ghost" onClick={onTogglePublic}>
+          <Button size="sm" variant="ghost" onClick={onTogglePublic} title={theme.isPublic ? 'Rendre privé' : 'Partager'}>
             {theme.isPublic ? <Lock className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
           </Button>
         )}
         {isOwner && onDelete && (
-          <Button size="sm" variant="ghost" className="text-destructive" onClick={onDelete}>
+          <Button size="sm" variant="ghost" className="text-destructive" onClick={onDelete} title="Supprimer">
             <Trash2 className="h-4 w-4" />
           </Button>
         )}
@@ -281,10 +296,79 @@ export function ThemeCreator() {
     }));
   };
 
+  // Export theme to JSON file
+  const handleExportTheme = (theme: CustomTheme) => {
+    const exportData: ThemeExport = {
+      version: '1.0',
+      name: theme.name,
+      colors: theme.colors,
+      exportedAt: new Date().toISOString(),
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `theme-${theme.name.toLowerCase().replace(/\s+/g, '-')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast.success(`Thème "${theme.name}" exporté`);
+  };
+
+  // Import theme from JSON file
+  const handleImportTheme = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const content = e.target?.result as string;
+        const importedData = JSON.parse(content) as ThemeExport;
+
+        // Validate the imported data
+        if (!importedData.name || !importedData.colors) {
+          throw new Error('Format de fichier invalide');
+        }
+
+        // Validate colors
+        const requiredColors = ['background', 'foreground', 'primary', 'primaryForeground', 'secondary', 'accent', 'muted', 'card', 'border'];
+        const hasAllColors = requiredColors.every(color => color in importedData.colors);
+        
+        if (!hasAllColors) {
+          throw new Error('Le thème importé ne contient pas toutes les couleurs requises');
+        }
+
+        // Create the theme
+        const result = await createTheme(
+          `${importedData.name} (importé)`,
+          { ...DEFAULT_COLORS, ...importedData.colors },
+          false
+        );
+
+        if (result) {
+          toast.success(`Thème "${importedData.name}" importé avec succès`);
+        }
+      } catch (error) {
+        console.error('Import error:', error);
+        toast.error(error instanceof Error ? error.message : 'Erreur lors de l\'import du thème');
+      }
+    };
+    reader.readAsText(file);
+    
+    // Reset input
+    event.target.value = '';
+  };
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <CardTitle className="flex items-center gap-2">
               <Palette className="h-5 w-5 text-primary" />
@@ -294,13 +378,26 @@ export function ThemeCreator() {
               Créez et partagez vos propres thèmes de couleurs
             </CardDescription>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Créer un thème
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-2 flex-wrap">
+            {/* Hidden file input for import */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              onChange={handleImportTheme}
+              className="hidden"
+            />
+            <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+              <Upload className="mr-2 h-4 w-4" />
+              Importer
+            </Button>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Créer un thème
+                </Button>
+              </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>Créer un thème personnalisé</DialogTitle>
@@ -416,6 +513,7 @@ export function ThemeCreator() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -449,6 +547,7 @@ export function ThemeCreator() {
                     onDuplicate={() => duplicateTheme(theme)}
                     onTogglePublic={() => updateTheme(theme.id, { isPublic: !theme.isPublic })}
                     onEdit={() => handleOpenEdit(theme)}
+                    onExport={() => handleExportTheme(theme)}
                   />
                 ))}
               </div>
@@ -476,6 +575,7 @@ export function ThemeCreator() {
                     isOwner={false}
                     onApply={() => applyTheme(activeCustomTheme === theme.id ? null : theme)}
                     onDuplicate={() => duplicateTheme(theme)}
+                    onExport={() => handleExportTheme(theme)}
                   />
                 ))}
               </div>
