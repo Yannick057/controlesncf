@@ -196,6 +196,39 @@ export function useCustomThemes() {
     toast.success(`Thème "${theme.name}" appliqué`);
   }, []);
 
+  // Preview theme without saving - applies colors temporarily
+  const previewTheme = useCallback((colors: typeof DEFAULT_COLORS | null) => {
+    const root = document.documentElement;
+    
+    if (!colors) {
+      // Reset to currently active theme or default
+      const activeTheme = [...themes, ...publicThemes].find(t => t.id === activeCustomTheme);
+      if (activeTheme) {
+        Object.entries(activeTheme.colors).forEach(([key, value]) => {
+          const cssVar = `--${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`;
+          root.style.setProperty(cssVar, value);
+        });
+      } else {
+        root.style.removeProperty('--background');
+        root.style.removeProperty('--foreground');
+        root.style.removeProperty('--primary');
+        root.style.removeProperty('--primary-foreground');
+        root.style.removeProperty('--secondary');
+        root.style.removeProperty('--accent');
+        root.style.removeProperty('--muted');
+        root.style.removeProperty('--card');
+        root.style.removeProperty('--border');
+      }
+      return;
+    }
+
+    // Apply preview colors
+    Object.entries(colors).forEach(([key, value]) => {
+      const cssVar = `--${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`;
+      root.style.setProperty(cssVar, value);
+    });
+  }, [themes, publicThemes, activeCustomTheme]);
+
   const duplicateTheme = useCallback(async (theme: CustomTheme) => {
     return createTheme(`${theme.name} (copie)`, theme.colors, false);
   }, [createTheme]);
@@ -231,6 +264,7 @@ export function useCustomThemes() {
     updateTheme,
     deleteTheme,
     applyTheme,
+    previewTheme,
     duplicateTheme,
     duplicateAndEdit,
     refetch: fetchThemes,

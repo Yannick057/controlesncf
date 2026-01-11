@@ -109,13 +109,21 @@ Application web progressive (PWA) pour la gestion des contrôles voyageurs SNCF,
 - **Partage communautaire** : Option de rendre un thème public pour le partager avec tous les utilisateurs
 - **Galerie de thèmes** : Parcourir et appliquer les thèmes créés par la communauté
 - **Prévisualisation en direct** : Aperçu des couleurs avant de créer le thème
-- **Duplication** : Copier un thème existant comme base pour en créer un nouveau
+- **Prévisualisation temps réel** : Bouton "Prévisualiser" pour voir les changements sur toute l'interface en temps réel
+- **Édition de thèmes** : Modifier ses propres thèmes avec le bouton crayon
+- **Duplication intelligente** : Modifier un thème communautaire crée automatiquement une copie personnelle
+- **Import/Export JSON** : Partager et sauvegarder ses thèmes au format JSON
 
-### 🔐 Visibilité des Données (Admin)
+### 🔔 Notifications Temps Réel
 
-- **Mode global** : Activer la visibilité de toutes les données pour tous les utilisateurs
-- **Permissions individuelles** : Accorder l'accès aux données globales à des utilisateurs spécifiques
-- **Gestion granulaire** : Interface de gestion par utilisateur
+- **Notifications push** : Alertes instantanées via Supabase Realtime
+- **Nouveaux contrôles** : Les managers/admins sont notifiés des nouveaux contrôles à bord et en gare
+- **Messages d'équipe** : Notification immédiate pour les messages reçus
+- **Centre de notifications** : Interface avec badge de compteur et historique complet
+- **Filtrage par type** : Filtrer les notifications par catégorie (bord, gare, messages)
+- **Alertes de fraude élevée** : Notifications lors de dépassement du seuil configurable
+- **Notification de mise à jour** : Alerte automatique lors d'une nouvelle version
+- **Badge "Nouveau"** : Indicateur visuel sur le bouton Changelog
 
 ### 🔔 Notifications
 
