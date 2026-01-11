@@ -1,73 +1,252 @@
-# Welcome to your Lovable project
+# 🚆 SNCF Contrôles - Application de Gestion des Contrôles
 
-## Project info
+Application web progressive (PWA) pour la gestion des contrôles voyageurs SNCF, permettant aux agents de saisir et suivre leurs contrôles à bord des trains et en gare.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+---
 
-## How can I edit this code?
+## 📱 Fonctionnalités
 
-There are several ways of editing your application.
+### 🎫 Saisie des Contrôles
 
-**Use Lovable**
+#### Contrôles à Bord
+- Sélection du numéro de train avec prédiction intelligente
+- Gare d'origine et de destination
+- Compteur de voyageurs contrôlés
+- Saisie des tarifs de bord (TB) et tarifs de contrôle
+- Comptage des STT 50€ et STT 100€
+- Liste des PV établis
+- Taux de fraude automatique
+- Régularisations immédiates (positives/négatives)
+- Commentaires libres
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+#### Contrôles en Gare
+- Sélection de la gare et du quai
+- Mêmes fonctionnalités que les contrôles à bord
+- Adaptation aux spécificités des contrôles fixes
 
-Changes made via Lovable will be committed automatically to this repo.
+### 📊 Tableau de Bord
 
-**Use your preferred IDE**
+- **Statistiques en temps réel:**
+  - Total des contrôles (jour/semaine/mois)
+  - Voyageurs contrôlés
+  - Taux de fraude moyen
+  - PV établis
+  - Régularisations
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- **Graphiques interactifs:**
+  - Évolution des contrôles dans le temps
+  - Répartition par type (bord/gare)
+  - Comparaison des performances
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- **Carte de chaleur de la fraude:**
+  - Visualisation géographique
+  - Identification des zones à risque
 
-Follow these steps:
+### 📜 Historique des Contrôles
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
+- Liste complète des contrôles effectués
+- Filtres par date, type, gare/train
+- Recherche avancée
+- Export des données (CSV, PDF)
+- Détail de chaque contrôle
+- Modification/suppression (selon permissions)
+
+### 👥 Gestion des Utilisateurs
+
+#### Rôles
+- **Agent:** Saisie et consultation de ses propres contrôles
+- **Manager:** Consultation de tous les contrôles, statistiques globales
+- **Administrateur:** Gestion complète (utilisateurs, configuration, données)
+
+#### Fonctionnalités Admin
+- Création/modification/suppression d'utilisateurs
+- Attribution des rôles
+- Réinitialisation des mots de passe
+- Suspension de comptes
+- Historique des changements de rôles
+- Journal d'audit complet
+
+### 🔔 Notifications
+
+- Alertes de fraude élevée
+- Configuration du seuil d'alerte
+- Notifications par email aux administrateurs
+- Paramètres personnalisables
+
+### 📝 Notes d'Équipe
+
+- Envoi de messages entre agents
+- Suivi des notes lues/non lues
+- Communication interne simplifiée
+
+### 🐛 Rapports de Bugs
+
+- Signalement des problèmes
+- Suivi des statuts (ouvert, en cours, résolu)
+- Priorités (basse, moyenne, haute, critique)
+
+### 📋 Notes de Version
+
+- Historique des mises à jour
+- Description des nouvelles fonctionnalités
+- Corrections de bugs
+
+### ⚙️ Paramètres
+
+- **Profil utilisateur:**
+  - Modification du nom
+  - Changement de mot de passe
+  
+- **Préférences:**
+  - Page par défaut au démarrage
+  - Ordre des menus
+  - Thème clair/sombre
+  
+- **Notifications:**
+  - Activation/désactivation
+  - Seuil d'alerte de fraude
+
+### 🔐 Sécurité
+
+- Authentification sécurisée
+- Politiques RLS (Row Level Security)
+- Chiffrement des données
+- Journal d'audit
+- Tableau de bord de sécurité (admin)
+
+---
+
+## 🛠️ Technologies
+
+| Technologie | Utilisation |
+|-------------|-------------|
+| **React 18** | Framework frontend |
+| **TypeScript** | Typage statique |
+| **Vite** | Build tool |
+| **Tailwind CSS** | Styles |
+| **shadcn/ui** | Composants UI |
+| **Lovable Cloud** | Backend (Supabase) |
+| **Recharts** | Graphiques |
+| **React Router** | Navigation |
+| **TanStack Query** | Gestion des données |
+| **Zod** | Validation |
+| **jsPDF** | Génération PDF |
+| **Vite PWA** | Application installable |
+
+---
+
+## 📱 PWA (Progressive Web App)
+
+L'application est installable sur:
+- 📱 Smartphones (iOS, Android)
+- 💻 Ordinateurs (Windows, Mac, Linux)
+
+### Fonctionnalités PWA:
+- Installation sur l'écran d'accueil
+- Mode hors-ligne (données en cache)
+- Synchronisation automatique
+- Notifications push (à venir)
+
+---
+
+## 🚀 Déploiement
+
+### Prérequis
+- Node.js 18+
+- npm ou bun
+
+### Installation locale
+
+```bash
+# Cloner le repository
 git clone <YOUR_GIT_URL>
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Installer les dépendances
+npm install
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Lancer en développement
 npm run dev
+
+# Build de production
+npm run build
 ```
 
-**Edit a file directly in GitHub**
+### Variables d'environnement
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```env
+VITE_SUPABASE_URL=https://hpbkpsofyxlacnskeukv.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+VITE_SUPABASE_PROJECT_ID=hpbkpsofyxlacnskeukv
+```
 
-**Use GitHub Codespaces**
+---
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 📁 Structure du Projet
 
-## What technologies are used for this project?
+```
+src/
+├── components/
+│   ├── admin/          # Composants admin (audit, sécurité, email)
+│   ├── controls/       # Composants de saisie (formulaires, compteurs)
+│   ├── dashboard/      # Composants tableau de bord (stats, charts)
+│   ├── features/       # Fonctionnalités (bugs, releases, rapports)
+│   ├── layout/         # Layout (header, navigation)
+│   └── ui/             # Composants UI shadcn
+├── contexts/           # Contextes React (auth, theme)
+├── hooks/              # Hooks personnalisés
+├── integrations/       # Configuration Supabase
+├── pages/              # Pages de l'application
+└── utils/              # Utilitaires (export, rapports)
 
-This project is built with:
+supabase/
+├── functions/          # Edge Functions
+│   ├── create-admin/
+│   ├── manage-user/
+│   ├── notify-admins/
+│   └── update-user-password/
+└── migrations/         # Migrations SQL
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+---
 
-## How can I deploy this project?
+## 📊 Pages de l'Application
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+| Route | Page | Accès |
+|-------|------|-------|
+| `/` | Accueil / Connexion | Public |
+| `/login` | Page de connexion | Public |
+| `/dashboard` | Tableau de bord | Authentifié |
+| `/onboard` | Contrôles à bord | Authentifié |
+| `/station` | Contrôles en gare | Authentifié |
+| `/history` | Historique | Authentifié |
+| `/settings` | Paramètres | Authentifié |
+| `/manager` | Vue manager | Manager+ |
+| `/admin` | Administration | Admin |
 
-## Can I connect a custom domain to my Lovable project?
+---
 
-Yes, you can!
+## 🔧 Configuration Backend
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Voir le fichier [SUPABASE_SETUP_GUIDE.md](./SUPABASE_SETUP_GUIDE.md) pour:
+- Schéma de base de données complet
+- Configuration des Edge Functions
+- Secrets et variables d'environnement
+- Création du premier administrateur
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+---
+
+## 📞 Support
+
+Pour signaler un bug ou proposer une amélioration:
+1. Utilisez la fonctionnalité "Signaler un bug" dans l'application
+2. Ou créez une issue sur le repository
+
+---
+
+## 📄 Licence
+
+Application développée pour SNCF - Usage interne.
+
+---
+
+*Dernière mise à jour: Janvier 2026*
