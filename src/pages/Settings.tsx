@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   User, Palette, Bell, Info, 
   Moon, Sun, Monitor, 
   Check, ShieldCheck,
-  Navigation as NavigationIcon, GripVertical, Bug, Sparkles, Vibrate
+  Navigation as NavigationIcon, GripVertical, Bug, Sparkles, Vibrate, Rocket
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme, THEME_OPTIONS, Theme } from '@/contexts/ThemeContext';
@@ -54,6 +55,7 @@ const PAGE_ORDER_OPTIONS = [
 ];
 
 export default function Settings() {
+  const navigate = useNavigate();
   const { user, refreshUserRole } = useAuth();
   const { theme, setTheme } = useTheme();
   const { latestVersion, loading: loadingVersion } = useReleaseNotes();
@@ -459,6 +461,10 @@ export default function Settings() {
                 Notes de version
               </Button>
             </ReleaseNotesDialog>
+            <Button variant="outline" onClick={() => navigate('/changelog')}>
+              <Rocket className="mr-2 h-4 w-4" />
+              Changelog complet
+            </Button>
           </div>
         </CardContent>
       </Card>
