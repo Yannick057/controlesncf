@@ -96,6 +96,96 @@ Application web progressive (PWA) pour la gestion des contrôles voyageurs SNCF,
 
 ---
 
+## 🔄 Flux de Saisie d'un Contrôle
+
+```mermaid
+flowchart TD
+    subgraph Interface["📱 Interface Utilisateur"]
+        A[🚀 Accès page Contrôle] --> B{Type de contrôle?}
+        B -->|À bord| C[📝 Formulaire Onboard]
+        B -->|En gare| D[📝 Formulaire Station]
+    end
+    
+    subgraph Saisie["✏️ Saisie des Données"]
+        C --> E[Numéro de train]
+        D --> F[Nom de la gare + Quai]
+        E --> G[Gare origine/destination]
+        F --> G
+        G --> H[Date et heure]
+        H --> I[Nombre de passagers]
+    end
+    
+    subgraph Tarifs["💰 Tarifs et Infractions"]
+        I --> J[Tarifs de bord vendus]
+        J --> K[Tarifs de contrôle]
+        K --> L{Type d'infraction?}
+        L -->|STT| M[STT 50€ / 100€]
+        L -->|RNV| N[Régularisation Non Valable]
+        L -->|Titre tiers| O[Titre d'un tiers]
+        L -->|D. naissance| P[Date de naissance]
+        L -->|PV| Q[Procès-verbal]
+        M --> R[Régularisations immédiates]
+        N --> R
+        O --> R
+        P --> R
+        Q --> R
+        R --> S[Commentaire optionnel]
+    end
+    
+    subgraph Calcul["🧮 Calculs Automatiques"]
+        S --> T[Calcul fraudCount]
+        T --> U["fraudCount = tarifs + STT50 + STT100 + PV"]
+        U --> V[Calcul fraudRate]
+        V --> W["fraudRate = (fraudCount / passengers) × 100"]
+    end
+    
+    subgraph Validation["✅ Validation"]
+        W --> X{Données valides?}
+        X -->|Non| Y[❌ Erreur de validation]
+        Y --> I
+        X -->|Oui| Z[📤 Envoi au serveur]
+    end
+    
+    subgraph Backend["☁️ Backend Supabase"]
+        Z --> AA{Connexion OK?}
+        AA -->|Non| AB[💾 Sauvegarde locale]
+        AB --> AC[🔄 Sync différée]
+        AA -->|Oui| AD[INSERT dans la table]
+        AD --> AE{RLS Policy check}
+        AE -->|Refusé| AF[⛔ Erreur permissions]
+        AE -->|OK| AG[✅ Enregistré en BDD]
+    end
+    
+    subgraph Retour["📊 Retour Utilisateur"]
+        AG --> AH[🔔 Toast de succès]
+        AH --> AI[Mise à jour liste]
+        AI --> AJ[📈 Actualisation stats]
+        AF --> AK[🔔 Toast d'erreur]
+        AC --> AL[🔔 Mode hors-ligne activé]
+    end
+    
+    style A fill:#4CAF50,color:#fff
+    style AG fill:#4CAF50,color:#fff
+    style AF fill:#f44336,color:#fff
+    style Y fill:#FF9800,color:#fff
+    style AB fill:#2196F3,color:#fff
+```
+
+### 📋 Étapes Détaillées
+
+| Étape | Description | Validation |
+|-------|-------------|------------|
+| 1. Accès | L'agent accède à la page de contrôle (bord ou gare) | Authentification requise |
+| 2. Identification | Saisie du train/gare et des informations de trajet | Champs obligatoires |
+| 3. Comptage | Nombre de passagers contrôlés | Entier ≥ 0 |
+| 4. Tarifs | Ajout des tarifs de bord et de contrôle | Montants en euros |
+| 5. Infractions | STT, RNV, PV, etc. | Type + montant |
+| 6. Calcul | Taux de fraude automatique | `(fraudes / passagers) × 100` |
+| 7. Envoi | Sauvegarde vers Supabase | Connexion + RLS |
+| 8. Confirmation | Toast de succès + mise à jour interface | - |
+
+---
+
 ## 🛠️ Technologies
 
 | Technologie | Version | Utilisation |
