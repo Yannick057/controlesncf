@@ -103,6 +103,20 @@ Application web progressive (PWA) pour la gestion des contrôles voyageurs SNCF,
 - **Ordre personnalisable** : Réorganisation de l'ordre des pages dans la navigation
 - **Page par défaut** : Choix de la page d'accueil après connexion
 
+### 🎨 Thèmes Personnalisés
+
+- **Création de thèmes** : Interface intuitive pour créer des thèmes avec sélecteur de couleurs
+- **Partage communautaire** : Option de rendre un thème public pour le partager avec tous les utilisateurs
+- **Galerie de thèmes** : Parcourir et appliquer les thèmes créés par la communauté
+- **Prévisualisation en direct** : Aperçu des couleurs avant de créer le thème
+- **Duplication** : Copier un thème existant comme base pour en créer un nouveau
+
+### 🔐 Visibilité des Données (Admin)
+
+- **Mode global** : Activer la visibilité de toutes les données pour tous les utilisateurs
+- **Permissions individuelles** : Accorder l'accès aux données globales à des utilisateurs spécifiques
+- **Gestion granulaire** : Interface de gestion par utilisateur
+
 ### 🔔 Notifications
 
 - Alertes de fraude élevée

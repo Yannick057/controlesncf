@@ -26,6 +26,7 @@ import { Navigate } from 'react-router-dom';
 import { AuditLogsTab } from '@/components/admin/AuditLogsTab';
 import { SecurityDashboard } from '@/components/admin/SecurityDashboard';
 import { EmailSettingsCard } from '@/components/admin/EmailSettingsCard';
+import { DataVisibilityCard } from '@/components/admin/DataVisibilityCard';
 import { ReleaseNoteForm } from '@/components/features/ReleaseNoteForm';
 
 type AppRole = 'admin' | 'manager' | 'agent';
@@ -1026,6 +1027,8 @@ export default function Admin() {
                 ))}
               </CardContent>
             </Card>
+
+            <DataVisibilityCard />
 
             <EmailSettingsCard />
           </div>
