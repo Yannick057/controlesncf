@@ -14,6 +14,7 @@ import ControlHistory from "./pages/ControlHistory";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
 import Manager from "./pages/Manager";
+import Changelog from "./pages/Changelog";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -93,6 +94,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Manager />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/changelog" 
+        element={
+          <ProtectedRoute>
+            <Changelog />
           </ProtectedRoute>
         } 
       />
