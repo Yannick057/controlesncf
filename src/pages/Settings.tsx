@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { BugReportDialog } from '@/components/features/BugReportDialog';
 import { ReleaseNotesDialog } from '@/components/features/ReleaseNotesDialog';
+import { ThemeCreator } from '@/components/features/ThemeCreator';
 
 type UserRole = 'agent' | 'manager' | 'admin';
 
@@ -451,6 +452,11 @@ export default function Settings() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Custom Themes */}
+      <div className="animate-slide-up" style={{ animationDelay: '75ms' }}>
+        <ThemeCreator />
+      </div>
 
       {/* Notifications */}
       <Card className="animate-slide-up" style={{ animationDelay: '100ms' }}>

@@ -110,6 +110,66 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_themes: {
+        Row: {
+          colors: Json
+          created_at: string
+          id: string
+          is_public: boolean
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          colors?: Json
+          created_at?: string
+          id?: string
+          is_public?: boolean
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          colors?: Json
+          created_at?: string
+          id?: string
+          is_public?: boolean
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      data_visibility_settings: {
+        Row: {
+          can_view_all_data: boolean
+          created_at: string
+          granted_at: string | null
+          granted_by: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          can_view_all_data?: boolean
+          created_at?: string
+          granted_at?: string | null
+          granted_by?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          can_view_all_data?: boolean
+          created_at?: string
+          granted_at?: string | null
+          granted_by?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       email_settings: {
         Row: {
           id: string
