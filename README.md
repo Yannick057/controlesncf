@@ -70,16 +70,29 @@ Application web progressive (PWA) pour la gestion des contrôles voyageurs SNCF,
 
 #### Rôles
 - **Agent:** Saisie et consultation de ses propres contrôles
-- **Manager:** Consultation de tous les contrôles, statistiques globales
+- **Manager:** Gestion des utilisateurs, attribution des rôles (sauf admin), consultation de tous les contrôles
 - **Administrateur:** Gestion complète (utilisateurs, configuration, données)
+
+#### Page Manager (anciennement Équipe)
+- Attribution des rôles (manager peut attribuer agent/manager)
+- Gestion des utilisateurs
+- Réinitialisation des mots de passe
+- Statistiques de l'équipe
+- Notes d'équipe
 
 #### Fonctionnalités Admin
 - Création/modification/suppression d'utilisateurs
-- Attribution des rôles
-- Réinitialisation des mots de passe
+- Attribution de tous les rôles (y compris admin)
 - Suspension de comptes
 - Historique des changements de rôles
 - Journal d'audit complet
+
+### ⚙️ Préférences de Navigation
+
+- **Visibilité des pages** : Chaque utilisateur peut masquer/afficher les pages qu'il souhaite via des toggles
+- **Pages non désactivables** : Les pages Paramètres, Manager (pour managers/admins) et Admin (pour admins) restent toujours visibles
+- **Ordre personnalisable** : Réorganisation de l'ordre des pages dans la navigation
+- **Page par défaut** : Choix de la page d'accueil après connexion
 
 ### 🔔 Notifications
 

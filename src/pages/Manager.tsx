@@ -394,7 +394,7 @@ export default function Manager() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             <UserCog className="h-6 w-6 text-primary" />
-            Gestion d'équipe
+            Manager
           </h1>
           <p className="text-muted-foreground">Gérez les agents et managers de votre équipe</p>
         </div>
