@@ -4,10 +4,59 @@ import { toast } from 'sonner';
 
 interface FeatureSettings {
   agent_performance_charts: boolean;
+  global_search: boolean;
+  pdf_export_manager: boolean;
+  fraud_heatmap: boolean;
+  team_notes: boolean;
+  bug_reports: boolean;
+  onboard_controls: boolean;
+  station_controls: boolean;
 }
 
 const DEFAULT_SETTINGS: FeatureSettings = {
   agent_performance_charts: true,
+  global_search: true,
+  pdf_export_manager: true,
+  fraud_heatmap: true,
+  team_notes: true,
+  bug_reports: true,
+  onboard_controls: true,
+  station_controls: true,
+};
+
+const FEATURE_LABELS: Record<keyof FeatureSettings, { name: string; description: string }> = {
+  agent_performance_charts: {
+    name: 'Graphiques de performance',
+    description: 'Affiche les statistiques de performance par agent sur la page Manager',
+  },
+  global_search: {
+    name: 'Recherche globale',
+    description: 'Permet la recherche dans toute l\'application (contrôles, utilisateurs, versions)',
+  },
+  pdf_export_manager: {
+    name: 'Export PDF Manager',
+    description: 'Permet l\'export PDF des statistiques d\'équipe pour les managers',
+  },
+  fraud_heatmap: {
+    name: 'Carte de chaleur fraude',
+    description: 'Affiche la carte de chaleur des fraudes sur le dashboard',
+  },
+  team_notes: {
+    name: 'Notes d\'équipe',
+    description: 'Permet l\'envoi de notes entre membres de l\'équipe',
+  },
+  bug_reports: {
+    name: 'Signalement de bugs',
+    description: 'Permet aux utilisateurs de signaler des bugs',
+  },
+  onboard_controls: {
+    name: 'Contrôles à bord',
+    description: 'Active la page de saisie des contrôles à bord',
+  },
+  station_controls: {
+    name: 'Contrôles en gare',
+    description: 'Active la page de saisie des contrôles en gare',
+  },
 };
 
 export function useAdminFeatures() {
@@ -43,12 +92,23 @@ export function useAdminFeatures() {
 
   const toggleFeature = useCallback(async (featureKey: keyof FeatureSettings, enabled: boolean) => {
     try {
-      const { error } = await supabase
+      // Try update first
+      const { data, error: updateError } = await supabase
         .from('admin_feature_settings')
         .update({ enabled, updated_at: new Date().toISOString() })
-        .eq('feature_key', featureKey);
+        .eq('feature_key', featureKey)
+        .select();
 
-      if (error) throw error;
+      // If no rows updated, insert
+      if (!updateError && (!data || data.length === 0)) {
+        const { error: insertError } = await supabase
+          .from('admin_feature_settings')
+          .insert({ feature_key: featureKey, enabled });
+        
+        if (insertError) throw insertError;
+      } else if (updateError) {
+        throw updateError;
+      }
 
       setSettings(prev => ({ ...prev, [featureKey]: enabled }));
       toast.success(enabled ? 'Fonctionnalité activée' : 'Fonctionnalité désactivée');
@@ -58,5 +118,5 @@ export function useAdminFeatures() {
     }
   }, []);
 
-  return { settings, loading, toggleFeature, refetch: fetchSettings };
+  return { settings, loading, toggleFeature, refetch: fetchSettings, FEATURE_LABELS };
 }

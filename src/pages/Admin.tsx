@@ -26,6 +26,7 @@ import { Navigate } from 'react-router-dom';
 import { AuditLogsTab } from '@/components/admin/AuditLogsTab';
 import { SecurityDashboard } from '@/components/admin/SecurityDashboard';
 import { EmailSettingsCard } from '@/components/admin/EmailSettingsCard';
+import { ReleaseNoteForm } from '@/components/features/ReleaseNoteForm';
 
 type AppRole = 'admin' | 'manager' | 'agent';
 
@@ -62,7 +63,7 @@ export default function Admin() {
   const { controls: stationControls, clearControls: clearStation, setControls: setStation } = useSupabaseStationControls();
   const { reports: bugReports, updateStatus: updateBugStatus, refetch: refetchBugs } = useBugReports();
   const { releaseNotes, addReleaseNote, refetch: refetchReleaseNotes } = useReleaseNotes();
-  const { settings: featureSettings, toggleFeature } = useAdminFeatures();
+  const { settings: featureSettings, toggleFeature, FEATURE_LABELS } = useAdminFeatures();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [roleHistory, setRoleHistory] = useState<RoleHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -919,25 +920,36 @@ export default function Admin() {
                     Gérez les notes de version de l'application
                   </CardDescription>
                 </div>
-                <Button variant="outline" onClick={refetchReleaseNotes}>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Actualiser
-                </Button>
+                <div className="flex gap-2">
+                  <ReleaseNoteForm />
+                  <Button variant="outline" onClick={refetchReleaseNotes}>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Actualiser
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {releaseNotes.map((note) => (
-                <div key={note.id} className="rounded-lg border p-4 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Badge>v{note.version}</Badge>
-                    <span className="text-sm text-muted-foreground">
-                      {new Date(note.releaseDate).toLocaleDateString('fr-FR')}
-                    </span>
-                  </div>
-                  <h4 className="font-semibold">{note.title}</h4>
-                  <p className="text-sm text-muted-foreground">{note.content}</p>
+              {releaseNotes.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Sparkles className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>Aucune note de version</p>
+                  <p className="text-sm">Cliquez sur "Nouvelle version" pour en créer une</p>
                 </div>
-              ))}
+              ) : (
+                releaseNotes.map((note) => (
+                  <div key={note.id} className="rounded-lg border p-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Badge>v{note.version}</Badge>
+                      <span className="text-sm text-muted-foreground">
+                        {new Date(note.releaseDate).toLocaleDateString('fr-FR')}
+                      </span>
+                    </div>
+                    <h4 className="font-semibold">{note.title}</h4>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line">{note.content}</p>
+                  </div>
+                ))
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -988,28 +1000,30 @@ export default function Admin() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Settings2 className="h-5 w-5 text-primary" />
-                  Fonctionnalités
+                  Fonctionnalités du site
                 </CardTitle>
                 <CardDescription>
-                  Activez ou désactivez les fonctionnalités pour les managers
+                  Activez ou désactivez les fonctionnalités pour tous les utilisateurs du site
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-1">
-                    <Label htmlFor="agent-perf" className="text-base font-medium">
-                      Graphiques de performance par agent
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Affiche les statistiques de performance détaillées par agent sur la page Manager
-                    </p>
+              <CardContent className="space-y-4">
+                {Object.entries(FEATURE_LABELS).map(([key, { name, description }]) => (
+                  <div key={key} className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-1 flex-1">
+                      <Label htmlFor={key} className="text-base font-medium">
+                        {name}
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        {description}
+                      </p>
+                    </div>
+                    <Switch
+                      id={key}
+                      checked={featureSettings[key as keyof typeof featureSettings]}
+                      onCheckedChange={(checked) => toggleFeature(key as keyof typeof featureSettings, checked)}
+                    />
                   </div>
-                  <Switch
-                    id="agent-perf"
-                    checked={featureSettings.agent_performance_charts}
-                    onCheckedChange={(checked) => toggleFeature('agent_performance_charts', checked)}
-                  />
-                </div>
+                ))}
               </CardContent>
             </Card>
 
