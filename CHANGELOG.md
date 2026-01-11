@@ -7,6 +7,25 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ---
 
+## [1.6.0] - 2026-01-11
+
+### ✨ Ajouté
+- **Notifications temps réel** : Alertes push via Supabase Realtime pour les nouveaux contrôles et messages
+- **Centre de notifications** : Interface avec compteur de non-lues et historique complet
+- **Filtres de notifications** : Par type (contrôles à bord, en gare, messages d'équipe)
+- **Thèmes personnalisés améliorés** :
+  - Édition des thèmes existants avec bouton crayon
+  - Duplication automatique lors de la modification d'un thème communautaire
+  - Import/Export de thèmes au format JSON
+  - **Prévisualisation en temps réel** des couleurs avant application
+- **Visibilité des données (Admin)** : Contrôle granulaire de l'accès aux données globales
+
+### 🔧 Modifié
+- Amélioration de l'interface de création de thèmes avec aperçu en direct
+- Meilleure gestion des notifications avec persistance de l'historique
+
+---
+
 ## [1.5.0] - 2026-01-11
 
 ### ✨ Ajouté

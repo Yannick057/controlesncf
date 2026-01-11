@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Plus, Palette, Trash2, Globe, Lock, Copy, Check, Loader2, Pencil, Download, Upload } from 'lucide-react';
+import { Plus, Palette, Trash2, Globe, Lock, Copy, Check, Loader2, Pencil, Download, Upload, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -205,6 +205,7 @@ export function ThemeCreator() {
     updateTheme,
     deleteTheme, 
     applyTheme,
+    previewTheme,
     duplicateTheme,
     duplicateAndEdit,
     DEFAULT_COLORS,
@@ -214,6 +215,7 @@ export function ThemeCreator() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [editingTheme, setEditingTheme] = useState<CustomTheme | null>(null);
+  const [isPreviewActive, setIsPreviewActive] = useState(false);
   const [newTheme, setNewTheme] = useState({
     name: '',
     isPublic: false,
@@ -283,17 +285,63 @@ export function ThemeCreator() {
   };
 
   const updateColor = (key: keyof typeof DEFAULT_COLORS, value: string) => {
+    const newColors = { ...newTheme.colors, [key]: value };
     setNewTheme(prev => ({
       ...prev,
-      colors: { ...prev.colors, [key]: value },
+      colors: newColors,
     }));
+    // Live preview
+    if (isPreviewActive) {
+      previewTheme(newColors);
+    }
   };
 
   const updateEditColor = (key: keyof typeof DEFAULT_COLORS, value: string) => {
+    const newColors = { ...editTheme.colors, [key]: value };
     setEditTheme(prev => ({
       ...prev,
-      colors: { ...prev.colors, [key]: value },
+      colors: newColors,
     }));
+    // Live preview during edit
+    if (isPreviewActive) {
+      previewTheme(newColors);
+    }
+  };
+
+  // Toggle live preview mode
+  const togglePreview = (colors: typeof DEFAULT_COLORS) => {
+    if (isPreviewActive) {
+      // Stop preview - revert to current theme
+      previewTheme(null);
+      setIsPreviewActive(false);
+    } else {
+      // Start preview
+      previewTheme(colors);
+      setIsPreviewActive(true);
+    }
+  };
+
+  // Cancel preview when closing dialogs
+  const handleCloseDialog = (open: boolean) => {
+    if (!open && isPreviewActive) {
+      previewTheme(null);
+      setIsPreviewActive(false);
+    }
+    setDialogOpen(open);
+    if (!open) {
+      setNewTheme({ name: '', isPublic: false, colors: { ...DEFAULT_COLORS } });
+    }
+  };
+
+  const handleCloseEditDialog = (open: boolean) => {
+    if (!open && isPreviewActive) {
+      previewTheme(null);
+      setIsPreviewActive(false);
+    }
+    setEditDialogOpen(open);
+    if (!open) {
+      setEditingTheme(null);
+    }
   };
 
   // Export theme to JSON file
@@ -391,7 +439,7 @@ export function ThemeCreator() {
               <Upload className="mr-2 h-4 w-4" />
               Importer
             </Button>
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <Dialog open={dialogOpen} onOpenChange={handleCloseDialog}>
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="mr-2 h-4 w-4" />
@@ -400,7 +448,23 @@ export function ThemeCreator() {
               </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
-                <DialogTitle>Créer un thème personnalisé</DialogTitle>
+                <DialogTitle className="flex items-center justify-between">
+                  <span>Créer un thème personnalisé</span>
+                  <Button 
+                    variant={isPreviewActive ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => togglePreview(newTheme.colors)}
+                    className="gap-1"
+                  >
+                    <Eye className="h-4 w-4" />
+                    {isPreviewActive ? 'Arrêter' : 'Prévisualiser'}
+                  </Button>
+                </DialogTitle>
+                {isPreviewActive && (
+                  <p className="text-sm text-muted-foreground bg-primary/10 rounded-md p-2 mt-2">
+                    🎨 Mode prévisualisation actif - Les changements sont visibles en temps réel
+                  </p>
+                )}
               </DialogHeader>
               <ScrollArea className="max-h-[60vh]">
                 <div className="space-y-4 p-1">
@@ -593,13 +657,27 @@ export function ThemeCreator() {
       </CardContent>
 
       {/* Edit Theme Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+      <Dialog open={editDialogOpen} onOpenChange={handleCloseEditDialog}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>
-              {editingTheme?.userId === user?.id ? 'Modifier le thème' : 'Personnaliser ce thème'}
+            <DialogTitle className="flex items-center justify-between">
+              <span>{editingTheme?.userId === user?.id ? 'Modifier le thème' : 'Personnaliser ce thème'}</span>
+              <Button 
+                variant={isPreviewActive ? "default" : "outline"} 
+                size="sm"
+                onClick={() => togglePreview(editTheme.colors)}
+                className="gap-1"
+              >
+                <Eye className="h-4 w-4" />
+                {isPreviewActive ? 'Arrêter' : 'Prévisualiser'}
+              </Button>
             </DialogTitle>
-            {editingTheme?.userId !== user?.id && (
+            {isPreviewActive && (
+              <p className="text-sm text-muted-foreground bg-primary/10 rounded-md p-2 mt-2">
+                🎨 Mode prévisualisation actif - Les changements sont visibles en temps réel
+              </p>
+            )}
+            {editingTheme?.userId !== user?.id && !isPreviewActive && (
               <p className="text-sm text-muted-foreground">
                 Une copie personnelle sera créée avec vos modifications.
               </p>
