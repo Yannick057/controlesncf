@@ -200,6 +200,28 @@ export function useCustomThemes() {
     return createTheme(`${theme.name} (copie)`, theme.colors, false);
   }, [createTheme]);
 
+  // Duplicate theme if user modifies a shared/community theme
+  const duplicateAndEdit = useCallback(async (theme: CustomTheme, updates: Partial<Pick<CustomTheme, 'name' | 'colors' | 'isPublic'>>) => {
+    if (!user?.id) return null;
+
+    // If it's the user's own theme, just update it
+    if (theme.userId === user.id) {
+      await updateTheme(theme.id, updates);
+      return { updated: true, themeId: theme.id };
+    }
+
+    // Otherwise, create a copy with the new modifications
+    const newColors = updates.colors ? { ...theme.colors, ...updates.colors } : theme.colors;
+    const newName = updates.name || `${theme.name} (ma version)`;
+    
+    const newTheme = await createTheme(newName, newColors, false);
+    if (newTheme) {
+      toast.success('Une copie personnelle du thème a été créée');
+      return { created: true, themeId: newTheme.id };
+    }
+    return null;
+  }, [user?.id, createTheme, updateTheme]);
+
   return {
     themes,
     publicThemes,
@@ -210,6 +232,7 @@ export function useCustomThemes() {
     deleteTheme,
     applyTheme,
     duplicateTheme,
+    duplicateAndEdit,
     refetch: fetchThemes,
     DEFAULT_COLORS,
   };

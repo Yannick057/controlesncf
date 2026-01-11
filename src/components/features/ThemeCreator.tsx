@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Palette, Trash2, Globe, Lock, Copy, Check, Loader2 } from 'lucide-react';
+import { Plus, Palette, Trash2, Globe, Lock, Copy, Check, Loader2, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCustomThemes, CustomTheme } from '@/hooks/useCustomThemes';
+import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -92,6 +93,7 @@ function ThemeCard({
   onDelete,
   onDuplicate,
   onTogglePublic,
+  onEdit,
 }: { 
   theme: CustomTheme;
   isActive: boolean;
@@ -100,6 +102,7 @@ function ThemeCard({
   onDelete?: () => void;
   onDuplicate: () => void;
   onTogglePublic?: () => void;
+  onEdit?: () => void;
 }) {
   return (
     <div className={cn(
@@ -153,6 +156,11 @@ function ThemeCard({
           {isActive ? <Check className="mr-1 h-3 w-3" /> : null}
           {isActive ? 'Actif' : 'Appliquer'}
         </Button>
+        {isOwner && onEdit && (
+          <Button size="sm" variant="ghost" onClick={onEdit}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+        )}
         <Button size="sm" variant="ghost" onClick={onDuplicate}>
           <Copy className="h-4 w-4" />
         </Button>
@@ -172,6 +180,7 @@ function ThemeCard({
 }
 
 export function ThemeCreator() {
+  const { user } = useAuth();
   const { 
     themes, 
     publicThemes, 
@@ -182,12 +191,20 @@ export function ThemeCreator() {
     deleteTheme, 
     applyTheme,
     duplicateTheme,
+    duplicateAndEdit,
     DEFAULT_COLORS,
   } = useCustomThemes();
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [editingTheme, setEditingTheme] = useState<CustomTheme | null>(null);
   const [newTheme, setNewTheme] = useState({
+    name: '',
+    isPublic: false,
+    colors: { ...DEFAULT_COLORS },
+  });
+  const [editTheme, setEditTheme] = useState({
     name: '',
     isPublic: false,
     colors: { ...DEFAULT_COLORS },
@@ -209,8 +226,56 @@ export function ThemeCreator() {
     }
   };
 
+  const handleOpenEdit = (theme: CustomTheme) => {
+    setEditingTheme(theme);
+    setEditTheme({
+      name: theme.name,
+      isPublic: theme.isPublic,
+      colors: { ...theme.colors },
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingTheme) return;
+    
+    if (!editTheme.name.trim()) {
+      toast.error('Veuillez donner un nom au thème');
+      return;
+    }
+
+    setCreating(true);
+    
+    // Check if user owns this theme
+    if (editingTheme.userId === user?.id) {
+      // Update existing theme
+      await updateTheme(editingTheme.id, {
+        name: editTheme.name,
+        isPublic: editTheme.isPublic,
+        colors: editTheme.colors,
+      });
+    } else {
+      // Duplicate and create new theme for community themes
+      await duplicateAndEdit(editingTheme, {
+        name: editTheme.name,
+        colors: editTheme.colors,
+      });
+    }
+    
+    setCreating(false);
+    setEditDialogOpen(false);
+    setEditingTheme(null);
+  };
+
   const updateColor = (key: keyof typeof DEFAULT_COLORS, value: string) => {
     setNewTheme(prev => ({
+      ...prev,
+      colors: { ...prev.colors, [key]: value },
+    }));
+  };
+
+  const updateEditColor = (key: keyof typeof DEFAULT_COLORS, value: string) => {
+    setEditTheme(prev => ({
       ...prev,
       colors: { ...prev.colors, [key]: value },
     }));
@@ -383,6 +448,7 @@ export function ThemeCreator() {
                     onDelete={() => deleteTheme(theme.id)}
                     onDuplicate={() => duplicateTheme(theme)}
                     onTogglePublic={() => updateTheme(theme.id, { isPublic: !theme.isPublic })}
+                    onEdit={() => handleOpenEdit(theme)}
                   />
                 ))}
               </div>
@@ -425,6 +491,133 @@ export function ThemeCreator() {
           </div>
         )}
       </CardContent>
+
+      {/* Edit Theme Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              {editingTheme?.userId === user?.id ? 'Modifier le thème' : 'Personnaliser ce thème'}
+            </DialogTitle>
+            {editingTheme?.userId !== user?.id && (
+              <p className="text-sm text-muted-foreground">
+                Une copie personnelle sera créée avec vos modifications.
+              </p>
+            )}
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh]">
+            <div className="space-y-4 p-1">
+              <div className="space-y-2">
+                <Label htmlFor="edit-theme-name">Nom du thème</Label>
+                <Input
+                  id="edit-theme-name"
+                  value={editTheme.name}
+                  onChange={(e) => setEditTheme(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Mon thème personnalisé"
+                />
+              </div>
+
+              {editingTheme?.userId === user?.id && (
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div>
+                    <Label>Partager publiquement</Label>
+                    <p className="text-xs text-muted-foreground">Les autres utilisateurs pourront voir et utiliser ce thème</p>
+                  </div>
+                  <Switch
+                    checked={editTheme.isPublic}
+                    onCheckedChange={(checked) => setEditTheme(prev => ({ ...prev, isPublic: checked }))}
+                  />
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <Label>Couleurs</Label>
+                <ColorInput 
+                  label="Arrière-plan" 
+                  value={editTheme.colors.background} 
+                  onChange={(v) => updateEditColor('background', v)} 
+                />
+                <ColorInput 
+                  label="Texte principal" 
+                  value={editTheme.colors.foreground} 
+                  onChange={(v) => updateEditColor('foreground', v)} 
+                />
+                <ColorInput 
+                  label="Couleur primaire" 
+                  value={editTheme.colors.primary} 
+                  onChange={(v) => updateEditColor('primary', v)} 
+                />
+                <ColorInput 
+                  label="Texte sur primaire" 
+                  value={editTheme.colors.primaryForeground} 
+                  onChange={(v) => updateEditColor('primaryForeground', v)} 
+                />
+                <ColorInput 
+                  label="Secondaire" 
+                  value={editTheme.colors.secondary} 
+                  onChange={(v) => updateEditColor('secondary', v)} 
+                />
+                <ColorInput 
+                  label="Accent" 
+                  value={editTheme.colors.accent} 
+                  onChange={(v) => updateEditColor('accent', v)} 
+                />
+                <ColorInput 
+                  label="Muted" 
+                  value={editTheme.colors.muted} 
+                  onChange={(v) => updateEditColor('muted', v)} 
+                />
+                <ColorInput 
+                  label="Carte" 
+                  value={editTheme.colors.card} 
+                  onChange={(v) => updateEditColor('card', v)} 
+                />
+                <ColorInput 
+                  label="Bordure" 
+                  value={editTheme.colors.border} 
+                  onChange={(v) => updateEditColor('border', v)} 
+                />
+              </div>
+
+              {/* Preview */}
+              <div className="rounded-lg border p-4" style={{ 
+                backgroundColor: `hsl(${editTheme.colors.background})`,
+                color: `hsl(${editTheme.colors.foreground})`,
+              }}>
+                <p className="text-sm font-medium mb-2">Aperçu</p>
+                <div className="flex gap-2">
+                  <div 
+                    className="px-3 py-1 rounded text-sm"
+                    style={{ 
+                      backgroundColor: `hsl(${editTheme.colors.primary})`,
+                      color: `hsl(${editTheme.colors.primaryForeground})`,
+                    }}
+                  >
+                    Bouton primaire
+                  </div>
+                  <div 
+                    className="px-3 py-1 rounded text-sm"
+                    style={{ 
+                      backgroundColor: `hsl(${editTheme.colors.secondary})`,
+                    }}
+                  >
+                    Secondaire
+                  </div>
+                </div>
+              </div>
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Annuler</Button>
+            </DialogClose>
+            <Button onClick={handleSaveEdit} disabled={creating}>
+              {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {editingTheme?.userId === user?.id ? 'Enregistrer' : 'Créer ma version'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
