@@ -1,4 +1,5 @@
-import { Plus, Building2, AlertTriangle, FileText, User, Download, Ticket, Loader2, Trash2 } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Plus, Building2, AlertTriangle, FileText, User, Download, Ticket, Loader2, Trash2, Eye } from 'lucide-react';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,8 @@ import { TarifBordList } from '@/components/controls/TarifBordList';
 import { GareSelector } from '@/components/controls/GareSelector';
 import { CitySelect } from '@/components/controls/CitySelect';
 import { ExportFilterDialog } from '@/components/controls/ExportFilterDialog';
+import { StationControlDetailDialog } from '@/components/controls/StationControlDetailDialog';
+import { ControlFilters, ControlFiltersState, applyControlFilters, defaultControlFilters } from '@/components/controls/ControlFilters';
 import { useSupabaseStationControls, StationControl, TarifItem, TarifBordItem, TarifBordType } from '@/hooks/useSupabaseControls';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -54,7 +57,8 @@ interface StationFormData {
 }
 
 export default function StationControls() {
-  const { controls, loading, addControl } = useSupabaseStationControls();
+  const { controls, loading, addControl, updateControl, deleteControl } = useSupabaseStationControls();
+  const [filters, setFilters] = useState<ControlFiltersState>(defaultControlFilters);
   const today = new Date().toISOString().split('T')[0];
   const now = new Date().toTimeString().slice(0, 5);
 
@@ -88,6 +92,20 @@ export default function StationControls() {
     defaultValues: defaultFormValues,
     formName: 'Contrôle en gare',
   });
+
+  // Apply filters to controls
+  const filteredControls = useMemo(() => {
+    return applyControlFilters(controls, filters);
+  }, [controls, filters]);
+
+  // Handlers for detail dialog
+  const handleUpdateControl = (updatedControl: StationControl) => {
+    updateControl(updatedControl.id, updatedControl);
+  };
+
+  const handleDeleteControl = (id: string) => {
+    deleteControl(id);
+  };
 
   // Calculated values
   const totalTarifsBord = values.tarifsBord.reduce((sum, t) => sum + t.montant, 0);
@@ -240,6 +258,25 @@ export default function StationControls() {
       label: 'Taux',
       align: 'right' as const,
       render: (item: StationControl) => <span className="font-medium">{item.fraudRate.toFixed(1)}%</span>,
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      align: 'center' as const,
+      render: (item: StationControl) => (
+        <div className="flex items-center justify-center gap-1">
+          <StationControlDetailDialog
+            control={item}
+            onUpdate={handleUpdateControl}
+            onDelete={handleDeleteControl}
+            trigger={
+              <Button variant="ghost" size="sm" title="Voir le détail">
+                <Eye className="h-4 w-4" />
+              </Button>
+            }
+          />
+        </div>
+      ),
     },
   ];
 
@@ -604,12 +641,26 @@ export default function StationControls() {
         </div>
       </form>
 
+      {/* Filters */}
+      <div className="flex items-center justify-between gap-4">
+        <ControlFilters 
+          filters={filters} 
+          onFiltersChange={setFilters} 
+          type="station" 
+        />
+        {filteredControls.length !== controls.length && (
+          <span className="text-sm text-muted-foreground">
+            {filteredControls.length} / {controls.length} contrôles
+          </span>
+        )}
+      </div>
+
       <ControlsTable
         title="Historique des contrôles en gare"
-        description={`${controls.length} contrôle${controls.length > 1 ? 's' : ''} enregistré${controls.length > 1 ? 's' : ''}`}
-        data={controls}
+        description={`${filteredControls.length} contrôle${filteredControls.length > 1 ? 's' : ''} affiché${filteredControls.length > 1 ? 's' : ''}`}
+        data={filteredControls}
         columns={columns}
-        emptyMessage="Aucun contrôle enregistré pour le moment"
+        emptyMessage="Aucun contrôle correspondant aux filtres"
       />
     </div>
   );

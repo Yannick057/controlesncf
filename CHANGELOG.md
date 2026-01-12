@@ -10,8 +10,13 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 ## [1.7.0] - 2026-01-12
 
 ### ✨ Ajouté
-- **Détail et édition des contrôles** : Bouton œil dans l'historique pour voir/modifier chaque contrôle
+- **Détail et édition des contrôles** : Bouton œil dans l'historique pour voir/modifier chaque contrôle (à bord ET en gare)
 - **Détail des opérations dans les exports** : Chaque tarif, PV et STT est maintenant listé dans les rapports HTML/PDF
+- **Filtres avancés dans l'historique** :
+  - Recherche par train/gare, trajet
+  - Filtre par période (aujourd'hui, 7 jours, personnalisé)
+  - Filtre par taux de fraude avec slider
+  - Badges de filtres actifs avec suppression rapide
 
 ### 🔧 Modifié
 - Suppression du préremplissage automatique des numéros de train (seuls les trains récents sont suggérés)

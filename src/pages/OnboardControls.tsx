@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Plus, Train, AlertTriangle, FileText, User, Download, Ticket, Loader2, Trash2, Eye, Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,7 @@ import { CitySelect } from '@/components/controls/CitySelect';
 import { TrainNumberInput } from '@/components/controls/TrainNumberInput';
 import { ExportFilterDialog } from '@/components/controls/ExportFilterDialog';
 import { OnboardControlDetailDialog } from '@/components/controls/OnboardControlDetailDialog';
+import { ControlFilters, ControlFiltersState, applyControlFilters, defaultControlFilters } from '@/components/controls/ControlFilters';
 import { useSupabaseOnboardControls, OnboardControl, TarifItem, TarifBordItem, TarifBordType } from '@/hooks/useSupabaseControls';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { useHapticFeedback } from '@/hooks/useHapticFeedback';
@@ -84,6 +85,12 @@ export default function OnboardControls() {
   const { controls, loading, addControl, updateControl, deleteControl } = useSupabaseOnboardControls();
   const { vibrateSuccess, vibrateError } = useHapticFeedback();
   const { addRecentTrain } = useTrainPrediction();
+  const [filters, setFilters] = useState<ControlFiltersState>(defaultControlFilters);
+  
+  // Apply filters to controls
+  const filteredControls = useMemo(() => {
+    return applyControlFilters(controls, filters);
+  }, [controls, filters]);
   
   // Use form persistence hook to save form data when changing tabs
   const { values: formValues, updateField, updateFields, clearPersistedData, isDirty } = useFormPersistence<OnboardFormValues>({
@@ -628,12 +635,26 @@ export default function OnboardControls() {
         </div>
       </form>
 
+      {/* Filters */}
+      <div className="flex items-center justify-between gap-4">
+        <ControlFilters 
+          filters={filters} 
+          onFiltersChange={setFilters} 
+          type="onboard" 
+        />
+        {filteredControls.length !== controls.length && (
+          <span className="text-sm text-muted-foreground">
+            {filteredControls.length} / {controls.length} contrôles
+          </span>
+        )}
+      </div>
+
       <ControlsTable
         title="Historique des contrôles à bord"
-        description={`${controls.length} contrôle${controls.length > 1 ? 's' : ''} enregistré${controls.length > 1 ? 's' : ''}`}
-        data={controls}
+        description={`${filteredControls.length} contrôle${filteredControls.length > 1 ? 's' : ''} affiché${filteredControls.length > 1 ? 's' : ''}`}
+        data={filteredControls}
         columns={columns}
-        emptyMessage="Aucun contrôle enregistré pour le moment"
+        emptyMessage="Aucun contrôle correspondant aux filtres"
       />
     </div>
   );
