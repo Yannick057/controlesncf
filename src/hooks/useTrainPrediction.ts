@@ -64,10 +64,10 @@ export function useTrainPrediction() {
     const query = input.trim().toUpperCase();
     const suggestions: TrainSuggestion[] = [];
 
-    // If empty, show recent trains first, then scheduled trains
+    // If empty, only show recent trains (no pre-filled suggestions)
     if (!query) {
-      // Add recent trains
-      recentTrains.slice(0, 3).forEach(train => {
+      // Add recent trains only
+      recentTrains.slice(0, 5).forEach(train => {
         suggestions.push({
           value: train,
           label: `${train} (récent)`,
@@ -75,21 +75,7 @@ export function useTrainPrediction() {
         });
       });
 
-      // Add scheduled trains for current time
-      TRAIN_PREFIXES.forEach(prefix => {
-        const scheduled = getScheduledTrains(prefix).slice(0, 2);
-        scheduled.forEach(train => {
-          if (!suggestions.find(s => s.value === train)) {
-            suggestions.push({
-              value: train,
-              label: `${train} (prévu ${currentHour}h-${currentHour + 3}h)`,
-              type: 'scheduled'
-            });
-          }
-        });
-      });
-
-      return suggestions.slice(0, 8);
+      return suggestions;
     }
 
     // Check if query starts with a known prefix

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Plus, Train, AlertTriangle, FileText, User, Download, Ticket, Loader2, Trash2 } from 'lucide-react';
+import { Plus, Train, AlertTriangle, FileText, User, Download, Ticket, Loader2, Trash2, Eye, Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,6 +24,7 @@ import { TarifBordList } from '@/components/controls/TarifBordList';
 import { CitySelect } from '@/components/controls/CitySelect';
 import { TrainNumberInput } from '@/components/controls/TrainNumberInput';
 import { ExportFilterDialog } from '@/components/controls/ExportFilterDialog';
+import { OnboardControlDetailDialog } from '@/components/controls/OnboardControlDetailDialog';
 import { useSupabaseOnboardControls, OnboardControl, TarifItem, TarifBordItem, TarifBordType } from '@/hooks/useSupabaseControls';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { useHapticFeedback } from '@/hooks/useHapticFeedback';
@@ -80,7 +81,7 @@ const getDefaultFormValues = (): OnboardFormValues => ({
 });
 
 export default function OnboardControls() {
-  const { controls, loading, addControl } = useSupabaseOnboardControls();
+  const { controls, loading, addControl, updateControl, deleteControl } = useSupabaseOnboardControls();
   const { vibrateSuccess, vibrateError } = useHapticFeedback();
   const { addRecentTrain } = useTrainPrediction();
   
@@ -199,6 +200,14 @@ export default function OnboardControls() {
 
     resetForm();
   };
+  const handleUpdateControl = (updatedControl: OnboardControl) => {
+    updateControl(updatedControl.id, updatedControl);
+  };
+
+  const handleDeleteControl = (id: string) => {
+    deleteControl(id);
+  };
+
   const columns = [
     {
       key: 'trainNumber',
@@ -245,6 +254,25 @@ export default function OnboardControls() {
       label: 'Taux',
       align: 'right' as const,
       render: (item: OnboardControl) => <span className="font-medium">{item.fraudRate.toFixed(1)}%</span>,
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      align: 'center' as const,
+      render: (item: OnboardControl) => (
+        <div className="flex items-center justify-center gap-1">
+          <OnboardControlDetailDialog
+            control={item}
+            onUpdate={handleUpdateControl}
+            onDelete={handleDeleteControl}
+            trigger={
+              <Button variant="ghost" size="sm" title="Voir le détail">
+                <Eye className="h-4 w-4" />
+              </Button>
+            }
+          />
+        </div>
+      ),
     },
   ];
 
