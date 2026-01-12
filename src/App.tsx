@@ -32,8 +32,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   const { isAuthenticated } = useAuth();
   
-  // Get default page from localStorage
-  const defaultPage = localStorage.getItem('user_default_page') || '/';
+  // Get default page from localStorage - ensure it's a valid path
+  const storedPage = localStorage.getItem('user_default_page');
+  const validPages = ['/', '/onboard', '/station', '/history', '/settings', '/admin', '/manager', '/changelog'];
+  const defaultPage = storedPage && validPages.includes(storedPage) ? storedPage : '/';
   
   return (
     <Routes>

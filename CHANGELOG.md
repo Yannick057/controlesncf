@@ -7,6 +7,18 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ---
 
+## [1.7.0] - 2026-01-12
+
+### ✨ Ajouté
+- **Détail et édition des contrôles** : Bouton œil dans l'historique pour voir/modifier chaque contrôle
+- **Détail des opérations dans les exports** : Chaque tarif, PV et STT est maintenant listé dans les rapports HTML/PDF
+
+### 🔧 Modifié
+- Suppression du préremplissage automatique des numéros de train (seuls les trains récents sont suggérés)
+- Correction du bug de la page d'accueil par défaut qui ne fonctionnait pas
+
+---
+
 ## [1.6.0] - 2026-01-11
 
 ### ✨ Ajouté

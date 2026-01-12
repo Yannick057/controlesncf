@@ -140,6 +140,42 @@ function generateOnboardHTML(controls: OnboardControl[], filters?: ExportFilters
   const totalTarifsBord = controls.reduce((s, c) => s + calculateTarifsBord(c), 0);
   const avgFraudRate = totalPassengers > 0 ? (totalFrauds / totalPassengers) * 100 : 0;
 
+  // Generate detail for each control
+  const generateControlDetails = (c: OnboardControl): string => {
+    const tarifsBord = safeArray<{ montant?: number; tarifType?: string; description?: string }>(c.tarifsBord);
+    const tarifsControle = safeArray<{ type?: string; montant?: number }>(c.tarifsControle);
+    const pvList = safeArray<{ type?: string; montant?: number }>(c.pvList);
+    
+    let details = '';
+    
+    // Tarifs à bord
+    if (tarifsBord.length > 0) {
+      details += '<div class="detail-section"><strong>Tarifs à bord:</strong> ';
+      details += tarifsBord.map(t => `${t.tarifType || 'bord'} ${safeNumber(t.montant).toFixed(2)}€${t.description ? ` (${t.description})` : ''}`).join(', ');
+      details += '</div>';
+    }
+    
+    // Tarifs contrôle
+    if (tarifsControle.length > 0 || safeNumber(c.stt50Count) > 0) {
+      details += '<div class="detail-section"><strong>Tarifs contrôle:</strong> ';
+      const parts: string[] = [];
+      tarifsControle.forEach(t => parts.push(`${t.type || 'Autre'} ${safeNumber(t.montant).toFixed(2)}€`));
+      if (safeNumber(c.stt50Count) > 0) parts.push(`STT50 ×${c.stt50Count} = ${(safeNumber(c.stt50Count) * 50).toFixed(2)}€`);
+      details += parts.join(', ') + '</div>';
+    }
+    
+    // PV
+    if (pvList.length > 0 || safeNumber(c.stt100Count) > 0) {
+      details += '<div class="detail-section"><strong>PV:</strong> ';
+      const parts: string[] = [];
+      pvList.forEach(t => parts.push(`${t.type || 'Autre'} ${safeNumber(t.montant).toFixed(2)}€`));
+      if (safeNumber(c.stt100Count) > 0) parts.push(`STT100 ×${c.stt100Count} = ${(safeNumber(c.stt100Count) * 100).toFixed(2)}€`);
+      details += parts.join(', ') + '</div>';
+    }
+    
+    return details || '<span class="no-details">-</span>';
+  };
+
   const mainTableRows = controls.map((c, index) => `
     <tr id="control-${index}">
       <td><a href="#train-${c.trainNumber}" class="train-link">${c.trainNumber || '-'}</a></td>
@@ -150,8 +186,10 @@ function generateOnboardHTML(controls: OnboardControl[], filters?: ExportFilters
       <td class="right ${safeNumber(c.fraudRate) > 10 ? 'high-fraud' : safeNumber(c.fraudRate) > 5 ? 'medium-fraud' : ''}">${safeNumber(c.fraudRate).toFixed(1)}%</td>
       <td class="right">${calculateTarifs(c).toFixed(2)}€</td>
       <td class="right">${calculatePV(c).toFixed(2)}€</td>
+      <td class="right">${calculateTarifsBord(c).toFixed(2)}€</td>
       <td class="right">${safeNumber(c.riPositif)}</td>
       <td class="right">${safeNumber(c.riNegatif)}</td>
+      <td class="details-cell">${generateControlDetails(c)}</td>
       <td>${c.commentaire || '-'}</td>
     </tr>
   `).join('');
@@ -258,6 +296,10 @@ function generateOnboardHTML(controls: OnboardControl[], filters?: ExportFilters
     .train-link:hover, .route-link:hover, .date-link:hover { 
       text-decoration: underline; 
     }
+    
+    .details-cell { font-size: 10px; max-width: 250px; }
+    .detail-section { margin-bottom: 2px; }
+    .no-details { color: #999; }
     
     @media print { 
       body { margin: 0; font-size: 10px; } 
@@ -391,8 +433,10 @@ function generateOnboardHTML(controls: OnboardControl[], filters?: ExportFilters
           <th class="right">Taux</th>
           <th class="right">Tarifs</th>
           <th class="right">PV</th>
+          <th class="right">Bord</th>
           <th class="right">RI+</th>
           <th class="right">RI-</th>
+          <th>Détail opérations</th>
           <th>Commentaire</th>
         </tr>
       </thead>
@@ -443,6 +487,42 @@ function generateStationHTML(controls: StationControl[], filters?: ExportFilters
   const totalTarifsBord = controls.reduce((s, c) => s + calculateTarifsBord(c), 0);
   const avgFraudRate = totalPassengers > 0 ? (totalFrauds / totalPassengers) * 100 : 0;
 
+  // Generate detail for each station control
+  const generateStationControlDetails = (c: StationControl): string => {
+    const tarifsBord = safeArray<{ montant?: number; tarifType?: string; description?: string }>(c.tarifsBord);
+    const tarifsControle = safeArray<{ type?: string; montant?: number }>(c.tarifsControle);
+    const pvList = safeArray<{ type?: string; montant?: number }>(c.pvList);
+    
+    let details = '';
+    
+    // Tarifs à bord
+    if (tarifsBord.length > 0) {
+      details += '<div class="detail-section"><strong>Tarifs bord:</strong> ';
+      details += tarifsBord.map(t => `${t.tarifType || 'bord'} ${safeNumber(t.montant).toFixed(2)}€${t.description ? ` (${t.description})` : ''}`).join(', ');
+      details += '</div>';
+    }
+    
+    // Tarifs contrôle
+    if (tarifsControle.length > 0 || safeNumber(c.stt50Count) > 0) {
+      details += '<div class="detail-section"><strong>Tarifs contrôle:</strong> ';
+      const parts: string[] = [];
+      tarifsControle.forEach(t => parts.push(`${t.type || 'Autre'} ${safeNumber(t.montant).toFixed(2)}€`));
+      if (safeNumber(c.stt50Count) > 0) parts.push(`STT50 ×${c.stt50Count} = ${(safeNumber(c.stt50Count) * 50).toFixed(2)}€`);
+      details += parts.join(', ') + '</div>';
+    }
+    
+    // PV
+    if (pvList.length > 0 || safeNumber(c.stt100Count) > 0) {
+      details += '<div class="detail-section"><strong>PV:</strong> ';
+      const parts: string[] = [];
+      pvList.forEach(t => parts.push(`${t.type || 'Autre'} ${safeNumber(t.montant).toFixed(2)}€`));
+      if (safeNumber(c.stt100Count) > 0) parts.push(`STT100 ×${c.stt100Count} = ${(safeNumber(c.stt100Count) * 100).toFixed(2)}€`);
+      details += parts.join(', ') + '</div>';
+    }
+    
+    return details || '<span class="no-details">-</span>';
+  };
+
   const mainTableRows = controls.map((c, index) => `
     <tr id="control-${index}">
       <td><a href="#station-${encodeURIComponent(c.stationName || '')}" class="station-link">${c.stationName || '-'}</a></td>
@@ -454,8 +534,10 @@ function generateStationHTML(controls: StationControl[], filters?: ExportFilters
       <td class="right ${safeNumber(c.fraudRate) > 10 ? 'high-fraud' : safeNumber(c.fraudRate) > 5 ? 'medium-fraud' : ''}">${safeNumber(c.fraudRate).toFixed(1)}%</td>
       <td class="right">${calculateTarifs(c).toFixed(2)}€</td>
       <td class="right">${calculatePV(c).toFixed(2)}€</td>
+      <td class="right">${calculateTarifsBord(c).toFixed(2)}€</td>
       <td class="right">${safeNumber(c.riPositif)}</td>
       <td class="right">${safeNumber(c.riNegatif)}</td>
+      <td class="details-cell">${generateStationControlDetails(c)}</td>
       <td>${c.commentaire || '-'}</td>
     </tr>
   `).join('');
@@ -690,8 +772,10 @@ function generateStationHTML(controls: StationControl[], filters?: ExportFilters
           <th class="right">Taux</th>
           <th class="right">Tarifs</th>
           <th class="right">PV</th>
+          <th class="right">Bord</th>
           <th class="right">RI+</th>
           <th class="right">RI-</th>
+          <th>Détail opérations</th>
           <th>Commentaire</th>
         </tr>
       </thead>
