@@ -228,8 +228,15 @@ export default function Admin() {
   const handlePasswordChange = async () => {
     if (!selectedUser || !newPassword) return;
 
-    if (newPassword.length < 6) {
-      toast.error('Le mot de passe doit contenir au moins 6 caractères');
+    // Validate password - must match server-side requirements
+    if (newPassword.length < 8) {
+      toast.error('Le mot de passe doit contenir au moins 8 caractères');
+      return;
+    }
+
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+      toast.error('Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre');
       return;
     }
 
@@ -633,7 +640,7 @@ export default function Admin() {
                                       </DialogClose>
                                       <Button 
                                         onClick={handlePasswordChange} 
-                                        disabled={newPassword.length < 6 || changingPassword}
+                                        disabled={newPassword.length < 8 || !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(newPassword) || changingPassword}
                                       >
                                         {changingPassword ? 'Modification...' : 'Changer le mot de passe'}
                                       </Button>
