@@ -124,9 +124,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: false, error: 'Format d\'email invalide' };
     }
 
-    // Validate password length
-    if (password.length < 6) {
-      return { success: false, error: 'Le mot de passe doit contenir au moins 6 caractères' };
+    // Validate password - must match server-side requirements
+    if (password.length < 8) {
+      return { success: false, error: 'Le mot de passe doit contenir au moins 8 caractères' };
+    }
+
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+    if (!passwordRegex.test(password)) {
+      return { success: false, error: 'Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre' };
     }
 
     try {
